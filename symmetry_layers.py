@@ -4,6 +4,13 @@ from pydash import py_
 from lib import AtomPair, EPS
 from scipy.spatial.transform import Rotation as R
 
+def compose_layers(layers):
+    def composed(a, b):
+        for layer in layers:
+            a, b = layer(a, b)
+        return a, b
+    return composed
+
 class SymmetryLayer:
     """
     对称层基类。
