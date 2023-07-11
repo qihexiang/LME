@@ -147,7 +147,7 @@ def rotate_matrix(axis, times):
 class RotationLayer(SymmetryLayer):
     """
     Cn, In, Sn对称元素
-    
+
     当旋转操作层是反轴或映轴时, 输出结果会通过`DedupLayer`进行过滤
     """
 
@@ -201,7 +201,9 @@ class RotationLayer(SymmetryLayer):
         rotated_atoms = deepcopy(atoms)
         rotated_bonds = deepcopy(bonds)
         current_positions = py_.map(atoms, lambda atom: atom.position)
-        for _ in range(1, self.times * (1 if self.dedup is None or self.times % 2 == 0 else 2)):
+        for _ in range(
+            1, self.times * (1 if self.dedup is None or self.times % 2 == 0 else 2)
+        ):
             current_positions = self.rotate(current_positions)
             new_atoms = self.copy_atoms(atoms)
             atom_positions = zip(new_atoms, current_positions)
@@ -220,7 +222,7 @@ if __name__ == "__main__":
     symmetry = RotationLayer([0, 0, 1], 6, "S")
 
     def output(a, b):
-        a,b = symmetry(a,b)    
+        a, b = symmetry(a, b)
         print(f"{len(a)} atoms {len(b)} bonds")
         print(a)
 
