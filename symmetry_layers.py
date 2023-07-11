@@ -147,6 +147,8 @@ def rotate_matrix(axis, times):
 class RotationLayer(SymmetryLayer):
     """
     Cn, In, Sn对称元素
+    
+    当旋转操作层是反轴或映轴时, 输出结果会通过`DedupLayer`进行过滤
     """
 
     def __init__(self, axis, times, mode="C", center=[0.0, 0.0, 0.0], eps=EPS) -> None:
@@ -174,7 +176,7 @@ class RotationLayer(SymmetryLayer):
         if mode == "S":
             before = mirror_matrix(axis)
         self.matrix = np.matmul(before, rotate_matrix(axis, times))
-        self.dedup = DedupLayer() if mode in ["I", "S"] else None
+        self.dedup = DedupLayer(self.eps) if mode in ["I", "S"] else None
 
     def rotate(self, positions):
         positions = positions - self.center
