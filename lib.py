@@ -38,7 +38,16 @@ class AtomPair:
         self.a, self.b = ids
 
     def has_atom(self, atom_id) -> bool:
-        return self.a == atom_id or self.b == atom_id 
+        return self.another_atom(atom_id) is not None
+    
+    def another_atom(self, atom_id):
+        if self.a == atom_id:
+            return self.b
+        
+        if self.b == atom_id:
+            return self.a
+        
+        return None
 
     def __eq__(self, another) -> bool:
         return (another.a == self.a and another.b == self.b) or (another.a == self.b and another.b == self.a)
