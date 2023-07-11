@@ -2,10 +2,10 @@ from typing import Any
 from lib import EPS, AtomPair
 from multiprocessing import Pool
 from pydash import py_
-import numbers as np
+import numpy as np
 from copy import deepcopy
 
-class DedepLayer:
+class DedupLayer:
     def __init__(self, eps = EPS) -> None:
         self.eps = eps
 
@@ -14,14 +14,12 @@ class DedepLayer:
             dups = py_.chain(atoms).filter(lambda target: target.element == atom.element and np.linalg.norm(target.position - atom.position) < self.eps).map(lambda target: AtomPair((target.get_id(), atom.get_id()))).value()
             dups = set(dups)
             dups.remove(AtomPair((atom.get_id(), atom.get_id())))
-            return dups
-        pool = Pool()
-        dups = pool.map(find_dups, atoms)
-        pool.close()
+            return list(dups)
+        dups = py_.map(atoms, find_dups)
         dups = set(py_.flatten(dups))
         def split_groups(acc, ne):
             a, b = ne.a, ne.b
-            idx = py_.find(acc, lambda s: a in s or b in s)
+            idx = py_.find_index(acc, lambda s: a in s or b in s)
             if idx == -1:
                 return acc + [{a, b}]
             target = acc[idx] | {a, b}
@@ -35,11 +33,14 @@ class DedepLayer:
             connected = {}
             for atom in removed:
                 targets = py_.filter(bonds.keys(), lambda ap: ap.has_atom(atom))
-                bond_type = bonds[targets[0]]
-                anothers = py_.map(targets, lambda ap: ap.another_atom(atom))
-                connected = connected | {another: bond_type for another in anothers }
-                for target in targets:
-                    bonds.pop(target)
+                if len(targets) == 0:
+                    pass
+                else:
+                    bond_type = bonds[targets[0]]
+                    anothers = py_.map(targets, lambda ap: ap.another_atom(atom))
+                    connected = connected | {another: bond_type for another in anothers }
+                    for target in targets:
+                        bonds.pop(target)
             bonds = bonds | {AtomPair(kept, another): connected[another] for another in connected.keys()}
             atoms = py_.filter(atoms, lambda atom: atom.get_id() not in removed)
         return atoms, bonds
@@ -59,5 +60,4 @@ class AutoBondLayer:
         return self.bond_length_matrix[idx]
     
     # def __call__(self, atoms, bonds) -> Any:
-        
 
