@@ -15,6 +15,7 @@ class SymmetryLayer:
     """
     对称层基类。
     """
+
     def __init__(self) -> None:
         pass
 
@@ -57,7 +58,7 @@ class SymmetryLayer:
 
 class InverseLayer(SymmetryLayer):
     """
-    中心对称层
+    对称元素i
     """
     def __init__(self, center=[0.0, 0.0, 0.0], eps=EPS) -> None:
         super().__init__()
@@ -66,11 +67,11 @@ class InverseLayer(SymmetryLayer):
 
     def on_center(self, position):
         return np.linalg.norm(position - self.center) < self.eps
-    
+
     def should_ignore_on_copy(self, atom):
         return self.on_center(atom.position)
-    
-    def inverse(self,positions):
+
+    def inverse(self, positions):
         centered = positions - self.center
         inversed = -1 * centered
         return inversed + self.center
@@ -87,11 +88,24 @@ class InverseLayer(SymmetryLayer):
         return atoms, bonds
 
 
+def mirror_matrix(law_vector):
+    [x, y, z] = law_vector / np.linalg.norm(law_vector)
+    return np.array(
+        [
+            [1 - 2 * (x**2), -2 * x * y, -2 * x * z],
+            [-2 * x * y, 1 - 2 * (y**2), -2 * y * z],
+            [-2 * x * z, -2 * y * z, 1 - 2 * (z**2)],
+        ],
+        dtype="float64",
+    )
+
+
 class MirrorLayer(SymmetryLayer):
     def __init__(self, law_vector, center=[0.0, 0.0, 0.0], eps=EPS) -> None:
         super().__init__()
         law_vector = np.array(law_vector, dtype="float64")
         self.law_vector = law_vector / np.linalg.norm(law_vector)
+        self.matrix = mirror_matrix(law_vector)
         self.center = np.array(center, dtype="float64")
         self.eps = eps
 
@@ -99,19 +113,19 @@ class MirrorLayer(SymmetryLayer):
         OP = position - self.center
         return abs(np.dot(OP, self.law_vector)) < self.eps
 
-    def mirror(self, position):
-        OP = position - self.center
-        mirror_P = np.dot(OP, self.law_vector) * self.law_vector
-        target = position - 2 * mirror_P
-        return target
-    
+    def mirror(self, positions):
+        positions = positions - self.center
+        targets = np.matmul(positions, self.matrix)
+        return targets + self.center
+
     def should_ignore_on_copy(self, atom):
         return self.on_mirror(atom.position)
 
     def __call__(self, atoms, bonds):
+        mirrored_positions = self.mirror(py_.map(atoms, lambda atom: atom.position))
         mirrored = (
-            py_.chain(self.copy_atoms(atoms))
-            .map(lambda atom: atom.move_to(self.mirror(atom.position)))
+            py_.chain(zip(self.copy_atoms(atoms), mirrored_positions))
+            .map(lambda ap: ap[0].move_to(ap[1]))
             .value()
         )
         atoms = py_.uniq_by(atoms + mirrored, lambda atom: atom.get_id())
@@ -120,7 +134,22 @@ class MirrorLayer(SymmetryLayer):
 
 
 class RotationLayer(SymmetryLayer):
-    def __init__(self, axis, times, center=[0.0, 0.0, 0.0], eps=EPS) -> None:
+    """
+    Cn, In, Sn对称元素
+    """
+
+    def __init__(self, axis, times, mode="C", center=[0.0, 0.0, 0.0], eps=EPS) -> None:
+        """
+        初始化一个旋转操作层
+        ---
+        parameters:
+
+        - axis: 旋转轴坐标
+        - times: 旋转轴次数n
+        - mode: 可选值为"C", "S"或"I", 分别对应旋转轴、映轴和反轴, 设置为以外的任何值时，作为旋转轴处理，默认为"C"
+        - center: 轴中点，默认为[0,0,0]
+        - eps: 容差范围, 用于判断是否与轴重合, 默认值为1E-8
+        """
         super().__init__()
         axis = np.array(axis)
         axis = axis / np.linalg.norm(axis)
@@ -128,8 +157,16 @@ class RotationLayer(SymmetryLayer):
         self.times = int(times)
         self.eps = eps
         self.axis = axis
+        before = np.eye(3)
+        if mode == "I":
+            before = before * -1.0
+        if mode == "S":
+            before = mirror_matrix(axis)
         self.matrices = [
-            R.from_rotvec(axis * (360 / times * i), degrees=True).as_matrix()
+            np.matmul(
+                before ** (i if i > 0 else 1),
+                R.from_rotvec(axis * (360 / times * i), degrees=True).as_matrix(),
+            )
             for i in range(0, times)
         ]
 
@@ -172,10 +209,10 @@ if __name__ == "__main__":
     from lib import Atom
     from editable_layer import EditableLayer
 
-    C3 = RotationLayer([0,0,1], 3)
+    I4 = RotationLayer([0, 0, 1], 4, "S")
 
     layer = EditableLayer()
-    layer.add_subscribers(lambda a,b: print(C3(a,b)))
-    N = layer.add_atom(Atom("N", [0,0,0]))
-    H = layer.add_atom(Atom("H", [1,0,-1]))
-    layer.set_bonds((N,H), 1.0)
+    layer.add_subscribers(lambda a, b: print(I4(a, b)))
+    C = layer.add_atom(Atom("C", [0, 0, 0]))
+    H = layer.add_atom(Atom("H", [1, 0, 1]))
+    layer.set_bonds((C, H), 1.0)
