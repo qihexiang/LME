@@ -3,13 +3,17 @@ from copy import deepcopy
 from pydash import py_
 from lib import AtomPair, EPS
 from scipy.spatial.transform import Rotation as R
+from util_layers import DedupLayer
+
 
 def compose_layers(layers):
     def composed(a, b):
         for layer in layers:
             a, b = layer(a, b)
         return a, b
+
     return composed
+
 
 class SymmetryLayer:
     """
@@ -60,6 +64,7 @@ class InverseLayer(SymmetryLayer):
     """
     对称元素i
     """
+
     def __init__(self, center=[0.0, 0.0, 0.0], eps=EPS) -> None:
         super().__init__()
         self.eps = eps
@@ -133,6 +138,12 @@ class MirrorLayer(SymmetryLayer):
         return atoms, bonds
 
 
+def rotate_matrix(axis, times):
+    axis = np.array(axis, dtype="float64")
+    axis = axis / np.linalg.norm(axis)
+    return R.from_rotvec(axis * (360 / times), degrees=True).as_matrix()
+
+
 class RotationLayer(SymmetryLayer):
     """
     Cn, In, Sn对称元素
@@ -162,17 +173,12 @@ class RotationLayer(SymmetryLayer):
             before = before * -1.0
         if mode == "S":
             before = mirror_matrix(axis)
-        self.matrices = [
-            np.matmul(
-                before ** (i if i > 0 else 1),
-                R.from_rotvec(axis * (360 / times * i), degrees=True).as_matrix(),
-            )
-            for i in range(0, times)
-        ]
+        self.matrix = np.matmul(before, rotate_matrix(axis, times))
+        self.dedup = DedupLayer() if mode in ["I", "S"] else None
 
     def rotate(self, positions):
         positions = positions - self.center
-        return [np.matmul(positions, matrix) + self.center for matrix in self.matrices]
+        return np.matmul(positions, self.matrix)
 
     def on_axis(self, position):
         OP = position - self.center
@@ -181,38 +187,43 @@ class RotationLayer(SymmetryLayer):
         delta = np.linalg.norm(delta)
         return delta < self.eps
 
+    def on_center(self, position):
+        return np.linalg.norm(position - self.center) < self.eps
+
     def should_ignore_on_copy(self, atom):
-        return self.on_axis(atom.position)
+        if self.dedup is None:
+            return self.on_axis(atom.position)
+        return self.on_center(atom.position)
 
     def __call__(self, atoms, bonds):
-        input_positions = py_.map(atoms, lambda atom: atom.position)
-        # Take only rotated groups
-        rotated_position_groups = self.rotate(input_positions)[1:]
-        rotated_atoms = [
-            py_.map(zip(self.copy_atoms(atoms), group), lambda ap: ap[0].move_to(ap[1]))
-            for group in rotated_position_groups
-        ]
-        rotated_bonds = [
-            self.generate_bonds(atoms, new_atoms, bonds) for new_atoms in rotated_atoms
-        ]
-        atoms = (
-            py_.chain([atoms] + rotated_atoms)
-            .flatten()
-            .uniq_by(lambda atom: atom.get_id())
-            .value()
-        )
-        bonds = py_.reduce([bonds] + rotated_bonds, lambda acc, next: acc | next)
-        return atoms, bonds
+        rotated_atoms = deepcopy(atoms)
+        rotated_bonds = deepcopy(bonds)
+        current_positions = py_.map(atoms, lambda atom: atom.position)
+        for _ in range(1, self.times * (1 if self.dedup is None or self.times % 2 == 0 else 2)):
+            current_positions = self.rotate(current_positions)
+            new_atoms = self.copy_atoms(atoms)
+            atom_positions = zip(new_atoms, current_positions)
+            rotated_atoms += py_.map(atom_positions, lambda ap: ap[0].move_to(ap[1]))
+            rotated_bonds = rotated_bonds | self.generate_bonds(atoms, new_atoms, bonds)
+        rotated_atoms = py_.uniq_by(rotated_atoms, lambda atom: atom.get_id())
+        if self.dedup is None:
+            return rotated_atoms, rotated_bonds
+        return self.dedup(rotated_atoms, rotated_bonds)
 
 
 if __name__ == "__main__":
     from lib import Atom
     from editable_layer import EditableLayer
 
-    I4 = RotationLayer([0, 0, 1], 4, "S")
+    symmetry = RotationLayer([0, 0, 1], 6, "S")
+
+    def output(a, b):
+        a,b = symmetry(a,b)    
+        print(f"{len(a)} atoms {len(b)} bonds")
+        print(a)
 
     layer = EditableLayer()
-    layer.add_subscribers(lambda a, b: print(I4(a, b)))
-    C = layer.add_atom(Atom("C", [0, 0, 0]))
-    H = layer.add_atom(Atom("H", [1, 0, 1]))
+    layer.add_subscribers(output)
+    C = layer.add_atom(Atom("C", [0, 0, 1]))
+    H = layer.add_atom(Atom("H", [1, 0, 1.2]))
     layer.set_bonds((C, H), 1.0)

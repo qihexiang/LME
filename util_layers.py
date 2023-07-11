@@ -23,7 +23,7 @@ class DedupLayer:
             if idx == -1:
                 return acc + [{a, b}]
             target = acc[idx] | {a, b}
-            return acc[0:idx] + target + acc[idx+1:]
+            return acc[0:idx] + [target] + acc[idx+1:]
         dup_groups = py_.reduce(dups, split_groups, [])
         atoms = deepcopy(atoms)
         bonds = deepcopy(bonds)
@@ -41,7 +41,7 @@ class DedupLayer:
                     connected = connected | {another: bond_type for another in anothers }
                     for target in targets:
                         bonds.pop(target)
-            bonds = bonds | {AtomPair(kept, another): connected[another] for another in connected.keys()}
+            bonds = bonds | {AtomPair((kept, another)): connected[another] for another in connected.keys()}
             atoms = py_.filter(atoms, lambda atom: atom.get_id() not in removed)
         return atoms, bonds
 
