@@ -1,35 +1,59 @@
+from copy import deepcopy
 import uuid
 import numpy as np
 from pydash import py_
+import os
+
+PRODUCTION = os.getenv("LME_PRODUCTION") in ["Y", "y", "YES", "yes", 1]
 
 EPS = 1e-8
 
 
-class Atom:
-    def __init__(self, element, position, atom_id=None) -> None:
-        if atom_id == None:
-            self.__atom_id = uuid.uuid4()
-        else:
-            self.__atom_id = atom_id
+class Redux:
+    def __init__(self, init_state=None) -> None:
+        self.__state__ = init_state
+        self.subscribers = set()
 
+    @property
+    def state(self):
+        # In prodcution mode, return the __state__ directly
+        if PRODUCTION:
+            return self.__state__
+        # In development mode, return an copied state to avoid change the state from outside.
+        return deepcopy(self.__state__)
+
+    def add_subscriber(self, subscriber):
+        self.subscribers.add(subscriber)
+
+    def remove_subscriber(self, subscriber):
+        self.subscribers.remove(subscriber)
+
+    def __broadcast__(self):
+        for subscriber in self.subscribers:
+            subscriber(self.state)
+
+    def update(self, updator):
+        self.__state__ = updator(self.state)
+        self.__broadcast__()
+
+
+class Atom:
+    def __init__(self, element, position) -> None:
         self.element = element
         self.position = np.array(position, dtype="float64")
 
-    def get_id(self):
-        return self.__atom_id
-
     def replace(self, element):
-        return Atom(element, self.position, self.get_id())
+        return Atom(element, self.position)
 
     def move_to(self, target) -> None:
-        return Atom(self.element, target, self.get_id())
+        return Atom(self.element, target)
 
     def move(self, vector) -> None:
         target = self.position + vector
         return self.move_to(target)
 
     def copy(self):
-        return Atom(self.element, self.position, uuid.uuid4())
+        return Atom(self.element, self.position)
 
     def __repr__(self) -> str:
         return f"{self.element} {self.position}"
@@ -62,3 +86,10 @@ class AtomPair:
 
     def __repr__(self) -> str:
         return f"{self.a} {self.b}"
+
+
+if __name__ == "__main__":
+    a1 = Atom("C", [1, 1, 0])
+    a2 = a1.move_to([1, 2, 0])
+    s = {a1: 1, a2: 2}
+    print(s)

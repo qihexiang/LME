@@ -60,7 +60,6 @@ class DedupLayer:
             atoms = py_.filter(atoms, lambda atom: atom.get_id() not in removed)
         return atoms, bonds
 
-
 class AutoBondLayer:
     def __init__(self, radius_table) -> None:
         elements = radius_table.keys()
