@@ -1,25 +1,64 @@
 import numpy as np
-from lib import AtomPair, StateContainer
+from lib import AtomPair, StateContainer, rotate_matrix
 from uuid import uuid4 as uuid
 from pydash import py_
-from symmetry_layers import rotate_matrix
 
 
-class EmptyLayer:
-    def __init__(self) -> None:
-        pass
+def molecule_output(target) -> str:
+    output = ""
+    output += "atoms:\n"
+    atom_ids = py_.filter(
+        target.atom_ids, lambda atom_id: target.atoms[atom_id] is not None
+    )
+    atoms = target.atoms
+    atoms = py_.map(atom_ids, lambda atom_id: atoms[atom_id])
+    for i, atom in enumerate(atoms):
+        output += f"{i+1} {atom}\n"
+
+    bond_ids = target.bond_ids
+    bonds = target.bonds
+    output += "bonds:\n"
+    for bond_id in bond_ids:
+        a_idx, b_idx = py_.find_index(
+            atom_ids, lambda atom_id: atom_id == bond_id.a
+        ), py_.find_index(atom_ids, lambda atom_id: atom_id == bond_id.b)
+        if -1 not in [a_idx, b_idx]:
+            output += f"{a_idx + 1} {b_idx + 1} {bonds[bond_id]}\n"
+
+    return output
+
+
+class StaticLayer:
+    def __init__(self, atoms=dict(), bonds=dict()) -> None:
+        atom_ids = py_.filter(atoms.keys(), lambda atom_id: atoms[atom_id] is not None)
+        self.__atoms = {atom_id: atoms[atom_id] for atom_id in atom_ids}
+        bond_ids = py_.filter(
+            bonds.keys(),
+            lambda bond_id: bonds[bond_id] is not None
+            and bond_id.a in atom_ids
+            and bond_id.b in atom_ids,
+        )
+        self.__bonds = {bond_id: bonds[bond_id] for bond_id in bond_ids}
 
     @property
     def atoms(self):
-        return dict()
+        return self.__atoms | {}
 
     @property
     def bonds(self):
-        return dict()
+        return self.__bonds | {}
+
+    @property
+    def atom_ids(self):
+        return self.atoms.keys()
+
+    @property
+    def bond_ids(self):
+        return self.bonds.keys()
 
 
 class EditableLayer(StateContainer):
-    def __init__(self, base=EmptyLayer()) -> None:
+    def __init__(self, base=StaticLayer()) -> None:
         super().__init__((dict(), dict(), set()))
         self.base = base
 
@@ -159,29 +198,6 @@ class EditableLayer(StateContainer):
         rotated = {atom_id: atom for (atom_id, atom) in zip(atom_ids, rotated_atoms)}
         self.__patch_to_atoms(rotated)
         return 0
-
-    def __repr__(self) -> str:
-        output = ""
-        output += "atoms:\n"
-        atom_ids = py_.filter(
-            self.atom_ids, lambda atom_id: self.atoms[atom_id] is not None
-        )
-        atoms = self.atoms
-        atoms = py_.map(atom_ids, lambda atom_id: atoms[atom_id])
-        for i, atom in enumerate(atoms):
-            output += f"{i+1} {atom}\n"
-
-        bond_ids = self.bond_ids
-        bonds = self.bonds
-        output += "bonds:\n"
-        for bond_id in bond_ids:
-            a_idx, b_idx = py_.find_index(
-                atom_ids, lambda atom_id: atom_id == bond_id.a
-            ), py_.find_index(atom_ids, lambda atom_id: atom_id == bond_id.b)
-            if -1 not in [a_idx, b_idx]:
-                output += f"{a_idx + 1} {b_idx + 1} {bonds[bond_id]}\n"
-
-        return output
 
 
 if __name__ == "__main__":

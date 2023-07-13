@@ -1,9 +1,11 @@
 import numpy as np
 from copy import deepcopy
 from pydash import py_
-from lib import AtomPair, EPS
+from editable_layer import StaticLayer, molecule_output
+from lib import AtomPair, EPS, Atom, mirror_matrix, rotate_matrix
 from scipy.spatial.transform import Rotation as R
 from util_layers import DedupLayer
+from uuid import uuid4 as uuid
 
 
 def compose_layers(layers):
@@ -13,6 +15,38 @@ def compose_layers(layers):
         return a, b
 
     return composed
+
+
+class AtomWithId(Atom):
+    def __init__(self, atom_id, atom):
+        super().__init__(atom.element, atom.position)
+        self.__id = atom_id
+
+    def get_id(self):
+        return self.__id
+
+    def replace(self, element):
+        return AtomWithId(self.get_id(), super().replace(element))
+
+    def move_to(self, target) -> None:
+        return AtomWithId(self.get_id(), super().move_to(target))
+
+    def copy(self):
+        return AtomWithId(uuid(), super().copy())
+
+
+def atoms_format_transformer(fn):
+    def wrapped(self, atoms, bonds):
+        atom_ids = py_.filter(atoms.keys(), lambda atom_id: atoms[atom_id] is not None)
+        atoms = py_.map(atom_ids, lambda uid: atoms[uid])
+        atom_with_ids = [
+            AtomWithId(atom_id, atom) for atom_id, atom in zip(atom_ids, atoms)
+        ]
+        atoms, bonds = fn(self, atom_with_ids, bonds)
+        atoms = {atom.get_id(): Atom(atom.element, atom.position) for atom in atoms}
+        return atoms, bonds
+
+    return wrapped
 
 
 class SymmetryLayer:
@@ -81,6 +115,7 @@ class InverseLayer(SymmetryLayer):
         inversed = -1 * centered
         return inversed + self.center
 
+    @atoms_format_transformer
     def __call__(self, atoms, bonds):
         inversed_positions = self.inverse(py_.map(atoms, lambda atom: atom.position))
         inversed = (
@@ -91,18 +126,6 @@ class InverseLayer(SymmetryLayer):
         atoms = py_.uniq_by(atoms + inversed, lambda atom: atom.get_id())
         bonds = bonds | self.generate_bonds(atoms, inversed, bonds)
         return atoms, bonds
-
-
-def mirror_matrix(law_vector):
-    [x, y, z] = law_vector / np.linalg.norm(law_vector)
-    return np.array(
-        [
-            [1 - 2 * (x**2), -2 * x * y, -2 * x * z],
-            [-2 * x * y, 1 - 2 * (y**2), -2 * y * z],
-            [-2 * x * z, -2 * y * z, 1 - 2 * (z**2)],
-        ],
-        dtype="float64",
-    )
 
 
 class MirrorLayer(SymmetryLayer):
@@ -126,6 +149,7 @@ class MirrorLayer(SymmetryLayer):
     def should_ignore_on_copy(self, atom):
         return self.on_mirror(atom.position)
 
+    @atoms_format_transformer
     def __call__(self, atoms, bonds):
         mirrored_positions = self.mirror(py_.map(atoms, lambda atom: atom.position))
         mirrored = (
@@ -136,12 +160,6 @@ class MirrorLayer(SymmetryLayer):
         atoms = py_.uniq_by(atoms + mirrored, lambda atom: atom.get_id())
         bonds = bonds | self.generate_bonds(atoms, mirrored, bonds)
         return atoms, bonds
-
-
-def rotate_matrix(axis, times):
-    axis = np.array(axis, dtype="float64")
-    axis = axis / np.linalg.norm(axis)
-    return R.from_rotvec(axis * (360 / times), degrees=True).as_matrix()
 
 
 class RotationLayer(SymmetryLayer):
@@ -197,6 +215,7 @@ class RotationLayer(SymmetryLayer):
             return self.on_axis(atom.position)
         return self.on_center(atom.position)
 
+    @atoms_format_transformer
     def __call__(self, atoms, bonds):
         rotated_atoms = deepcopy(atoms)
         rotated_bonds = deepcopy(bonds)
@@ -221,13 +240,26 @@ if __name__ == "__main__":
 
     symmetry = RotationLayer([0, 0, 1], 6, "S")
 
-    def output(a, b):
+    output_layer = StaticLayer()
+
+    def output(state):
+        global output_layer
+        a, b, _ = state
         a, b = symmetry(a, b)
-        print(f"{len(a)} atoms {len(b)} bonds")
-        print(a)
+        output_layer = StaticLayer(a, b)
+        # print(molecule_output(output_layer))
 
     layer = EditableLayer()
-    layer.add_subscribers(output)
-    C = layer.add_atom(Atom("C", [0, 0, 1]))
-    H = layer.add_atom(Atom("H", [1, 0, 1.2]))
-    layer.set_bonds((C, H), 1.0)
+    layer.add_subscriber(output)
+    [C, H] = layer.add_atoms([Atom("C", [0, 0, 1]), Atom("H", [1, 0, 1.2])])
+    layer.set_bond(C, H, 1.0)
+    layer.select([H])
+    layer.set_element_selected("Cl")
+
+    # layer.remove_subscriber(output)
+
+    layer = EditableLayer(output_layer)
+    Cl = py_.find(layer.atom_ids, lambda atom_id: layer.atoms[atom_id].element == "Cl")
+    layer.select([Cl])
+    layer.set_element_selected("F")
+    print(molecule_output(layer))

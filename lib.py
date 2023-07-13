@@ -3,6 +3,7 @@ import uuid
 import numpy as np
 from pydash import py_
 import os
+from scipy.spatial.transform import Rotation as R
 
 PRODUCTION = os.getenv("LME_PRODUCTION") in ["Y", "y", "YES", "yes", 1]
 
@@ -86,6 +87,24 @@ class AtomPair:
 
     def __repr__(self) -> str:
         return f"{self.a} {self.b}"
+
+
+def mirror_matrix(law_vector):
+    [x, y, z] = law_vector / np.linalg.norm(law_vector)
+    return np.array(
+        [
+            [1 - 2 * (x**2), -2 * x * y, -2 * x * z],
+            [-2 * x * y, 1 - 2 * (y**2), -2 * y * z],
+            [-2 * x * z, -2 * y * z, 1 - 2 * (z**2)],
+        ],
+        dtype="float64",
+    )
+
+
+def rotate_matrix(axis, times):
+    axis = np.array(axis, dtype="float64")
+    axis = axis / np.linalg.norm(axis)
+    return R.from_rotvec(axis * (360 / times), degrees=True).as_matrix()
 
 
 if __name__ == "__main__":
