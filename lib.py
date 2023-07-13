@@ -9,7 +9,7 @@ PRODUCTION = os.getenv("LME_PRODUCTION") in ["Y", "y", "YES", "yes", 1]
 EPS = 1e-8
 
 
-class Redux:
+class StateContainer:
     def __init__(self, init_state=None) -> None:
         self.__state__ = init_state
         self.subscribers = set()

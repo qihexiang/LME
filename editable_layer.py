@@ -1,5 +1,5 @@
 import numpy as np
-from lib import AtomPair, Redux
+from lib import AtomPair, StateContainer
 from uuid import uuid4 as uuid
 from pydash import py_
 from symmetry_layers import rotate_matrix
@@ -18,7 +18,7 @@ class EmptyLayer:
         return dict()
 
 
-class EditableLayer(Redux):
+class EditableLayer(StateContainer):
     def __init__(self, base=EmptyLayer()) -> None:
         super().__init__((dict(), dict(), set()))
         self.base = base
@@ -73,9 +73,9 @@ class EditableLayer(Redux):
         self.update(updator)
         return 0
 
-    def deselect_all(self, atom_ids):
+    def deselect_all(self):
         def updator(state):
-            a, b, s = state
+            a, b, _ = state
             return a, b, set()
 
         self.update(updator)
@@ -146,6 +146,7 @@ class EditableLayer(Redux):
             py_.chain(atom_ids)
             .map(lambda atom_id: self.atoms[atom_id])
             .map(lambda atom: atom.move_to(calculate_target_position(atom.position)))
+            .value()
         )
         rotated = {atom_id: atom for (atom_id, atom) in zip(atom_ids, rotated_atoms)}
         self.__patch_to_atoms(rotated)
@@ -179,7 +180,7 @@ if __name__ == "__main__":
     from lib import Atom
 
     layer = EditableLayer()
-    layer.add_subscriber(print)
+    # layer.add_subscriber(print)
     [C, H1, H2, H3, H4] = layer.add_atoms(
         [
             Atom("C", [0, 0, 0]),
@@ -190,5 +191,23 @@ if __name__ == "__main__":
         ]
     )
     for H in [H1, H2, H3, H4]:
-        layer.set_bond(C,H,1.0)
+        layer.set_bond(C, H, 1.0)
+    print(layer)
+
+    layer.select([C, H1, H2])
+    layer.rotation_selected([1, 0, 0], [0, 0, 0], 90.0)
+
+    print(layer)
+
+    layer.deselect_all()
+    layer.select([H1, H2, H3, H4])
+    layer.set_element_selected("Cl")
+    print(layer)
+
+    layer.select([C])
+    layer.translation_selected([2, 1, 0])
+    print(layer)
+
+    layer.deselect([C, H1, H2])
+    layer.remove_selected()
     print(layer)
