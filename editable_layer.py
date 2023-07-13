@@ -81,6 +81,14 @@ class EditableLayer(StateContainer):
         self.update(updator)
         return 0
 
+    def select_all(self):
+        def updator(state):
+            a, b, s = state
+            return a, b, set(a.keys())
+
+        self.update(updator)
+        return 0
+
     @property
     def atom_ids(self):
         return set(self.atoms.keys())
@@ -204,10 +212,15 @@ if __name__ == "__main__":
     layer.set_element_selected("Cl")
     print(layer)
 
-    layer.select([C])
+    layer.select_all()
     layer.translation_selected([2, 1, 0])
     print(layer)
 
+    layer.deselect([H1, H2, H3, H4])
+    layer.set_element_selected("Si")
+    print(layer)
+
+    layer.select_all()
     layer.deselect([C, H1, H2])
     layer.remove_selected()
     print(layer)
