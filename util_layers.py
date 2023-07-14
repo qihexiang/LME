@@ -1,5 +1,5 @@
 from typing import Any
-from lib import EPS, AtomPair
+from lib import EPS, UUIDPair
 from multiprocessing import Pool
 from pydash import py_
 import numpy as np
@@ -18,11 +18,11 @@ class DedupLayer:
                     lambda target: target.element == atom.element
                     and np.linalg.norm(target.position - atom.position) < self.eps
                 )
-                .map(lambda target: AtomPair((target.get_id(), atom.get_id())))
+                .map(lambda target: UUIDPair((target.get_id(), atom.get_id())))
                 .value()
             )
             dups = set(dups)
-            dups.remove(AtomPair((atom.get_id(), atom.get_id())))
+            dups.remove(UUIDPair((atom.get_id(), atom.get_id())))
             return list(dups)
 
         dups = py_.map(atoms, find_dups)
@@ -54,7 +54,7 @@ class DedupLayer:
                     for target in targets:
                         bonds.pop(target)
             bonds = bonds | {
-                AtomPair((kept, another)): connected[another]
+                UUIDPair((kept, another)): connected[another]
                 for another in connected.keys()
             }
             atoms = py_.filter(atoms, lambda atom: atom.get_id() not in removed)

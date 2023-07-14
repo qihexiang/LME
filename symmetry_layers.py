@@ -2,7 +2,7 @@ import numpy as np
 from copy import deepcopy
 from pydash import py_
 from editable_layer import StaticLayer, molecule_output
-from lib import AtomPair, EPS, Atom, mirror_matrix, rotate_matrix
+from lib import UUIDPair, EPS, Atom, mirror_matrix, rotate_matrix
 from scipy.spatial.transform import Rotation as R
 from util_layers import DedupLayer
 from uuid import uuid4 as uuid
@@ -94,7 +94,7 @@ class SymmetryLayer:
         for atom_pair in bonds.keys():
             a, b = atom_pair.a, atom_pair.b
             a, b = id_refs[a], id_refs[b]
-            new_pair = AtomPair((a, b))
+            new_pair = UUIDPair((a, b))
             new_bonds[new_pair] = bonds[atom_pair]
 
         return new_bonds

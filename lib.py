@@ -60,7 +60,7 @@ class Atom:
         return f"{self.element} {self.position}"
 
 
-class AtomPair:
+class UUIDPair:
     def __init__(self, ids) -> None:
         self.a, self.b = ids
 

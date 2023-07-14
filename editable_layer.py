@@ -1,5 +1,5 @@
 import numpy as np
-from lib import AtomPair, StateContainer, rotate_matrix
+from lib import UUIDPair, StateContainer, rotate_matrix
 from uuid import uuid4 as uuid
 from pydash import py_
 
@@ -155,7 +155,7 @@ class EditableLayer(StateContainer):
     def set_bond(self, atom_a_id, atom_b_id, bond):
         atom_a, atom_b = self.atoms.get(atom_a_id), self.atoms.get(atom_b_id)
         if None not in [atom_a, atom_b]:
-            self.__patch_to_bonds({AtomPair((atom_a_id, atom_b_id)): bond})
+            self.__patch_to_bonds({UUIDPair((atom_a_id, atom_b_id)): bond})
             return 0
         raise KeyError("At least one of the atoms not existed.")
 
