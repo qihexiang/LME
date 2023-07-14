@@ -40,8 +40,16 @@ class StateContainer:
 
 class Atom:
     def __init__(self, element, position) -> None:
-        self.element = element
-        self.position = np.array(position, dtype="float64")
+        self.__element = element
+        self.__position = np.array(position, dtype="float64")
+
+    @property
+    def element(self):
+        return self.__element
+    
+    @property
+    def position(self):
+        return self.__position
 
     def replace(self, element):
         return Atom(element, self.position)
@@ -57,7 +65,8 @@ class Atom:
         return Atom(self.element, self.position)
 
     def __repr__(self) -> str:
-        return f"{self.element} {self.position}"
+        x, y, z = self.position
+        return f"{self.element} {x} {y} {z}"
 
 
 class UUIDPair:
