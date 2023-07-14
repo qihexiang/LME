@@ -1,4 +1,5 @@
 from typing import Any
+from editable_layer import EditableLayer, StaticLayer
 from lib import EPS, UUIDPair
 from multiprocessing import Pool
 from pydash import py_
@@ -59,6 +60,11 @@ class DedupLayer:
             }
             atoms = py_.filter(atoms, lambda atom: atom.get_id() not in removed)
         return atoms, bonds
+
+    @property
+    def json(self):
+        return {"type": "dedup", "eps": self.eps}
+
 
 class AutoBondLayer:
     def __init__(self, radius_table) -> None:
