@@ -2,9 +2,10 @@ import numpy as np
 from lib import UUIDPair, StateContainer, rotate_matrix
 from uuid import uuid4 as uuid
 from pydash import py_
+import json
 
 
-def molecule_output(target) -> str:
+def molecule_text(target) -> str:
     output = ""
     output += "atoms:\n"
     atom_ids = py_.filter(
@@ -55,9 +56,20 @@ class StaticLayer:
     @property
     def bond_ids(self):
         return self.bonds.keys()
-    
+
     def __repr__(self) -> str:
-        return molecule_output(self)
+        return molecule_text(self)
+
+    @property
+    def json(self):
+        atoms = self.atoms
+        bonds = self.bonds
+        atoms = {
+            str(atom_id): atoms[atom_id].json if atoms[atom_id] is not None else None
+            for atom_id in atoms.keys()
+        }
+        bonds = {bond_id.json: bonds[bond_id] for bond_id in bonds.keys()}
+        return {"type": "static", "atoms": atoms, "bonds": bonds}
 
 
 class EditableLayer(StateContainer):
@@ -203,13 +215,42 @@ class EditableLayer(StateContainer):
         return 0
 
     def __repr__(self):
-        return molecule_output(self)
+        return molecule_text(self)
+
+    @property
+    def json(self):
+        atoms, bonds, _ = self.state
+        atoms = {
+            str(atom_id): atoms[atom_id].json if atoms[atom_id] is not None else None
+            for atom_id in atoms.keys()
+        }
+        bonds = {bond_id.json: bonds[bond_id] for bond_id in bonds.keys()}
+        return {
+            "type": "editable",
+            "atoms": atoms,
+            "bonds": bonds,
+            "base": self.base.json,
+        }
+
 
 if __name__ == "__main__":
     from lib import Atom
 
+    selected = set()
+
+    def on_select(state):
+        global selected
+        _, _, s = state
+        if s == selected:
+            pass
+        elif len(s) == 0:
+            print(f"Deselect all")
+        else:
+            print(f"Select changed: {s}")
+            selected = s
+
     layer = EditableLayer()
-    # layer.add_subscriber(print)
+    layer.add_subscriber(on_select)
     [C, H1, H2, H3, H4] = layer.add_atoms(
         [
             Atom("C", [0, 0, 0]),
@@ -221,27 +262,29 @@ if __name__ == "__main__":
     )
     for H in [H1, H2, H3, H4]:
         layer.set_bond(C, H, 1.0)
-    print(layer)
+    # print(layer)
 
     layer.select([C, H1, H2])
     layer.rotation_selected([1, 0, 0], [0, 0, 0], 90.0)
 
-    print(layer)
+    # print(layer)
 
     layer.deselect_all()
     layer.select([H1, H2, H3, H4])
     layer.set_element_selected("Cl")
-    print(layer)
+    # print(layer)
 
     layer.select_all()
     layer.translation_selected([2, 1, 0])
-    print(layer)
+    # print(layer)
 
     layer.deselect([H1, H2, H3, H4])
     layer.set_element_selected("Si")
-    print(layer)
+    # print(layer)
 
     layer.select_all()
     layer.deselect([C, H1, H2])
     layer.remove_selected()
-    print(layer)
+    # print(layer)
+
+    print(json.dumps(layer.json))

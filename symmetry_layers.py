@@ -1,7 +1,7 @@
 import numpy as np
 from copy import deepcopy
 from pydash import py_
-from editable_layer import StaticLayer, molecule_output
+from editable_layer import StaticLayer, molecule_text
 from lib import UUIDPair, EPS, Atom, mirror_matrix, rotate_matrix
 from scipy.spatial.transform import Rotation as R
 from util_layers import DedupLayer
@@ -99,6 +99,10 @@ class SymmetryLayer:
 
         return new_bonds
 
+    @property
+    def json(self):
+        raise NotImplemented("Should implement in sub-class")
+
 
 class InverseLayer(SymmetryLayer):
     """
@@ -132,6 +136,10 @@ class InverseLayer(SymmetryLayer):
         atoms = py_.uniq_by(atoms + inversed, lambda atom: atom.get_id())
         bonds = bonds | self.generate_bonds(atoms, inversed, bonds)
         return atoms, bonds
+
+    @property
+    def json(self):
+        return {"type": "symmetry.inv", "center": list(self.center), "eps": self.eps}
 
 
 class MirrorLayer(SymmetryLayer):
@@ -167,6 +175,15 @@ class MirrorLayer(SymmetryLayer):
         bonds = bonds | self.generate_bonds(atoms, mirrored, bonds)
         return atoms, bonds
 
+    @property
+    def json(self):
+        return {
+            "type": "symmetry.mirror",
+            "law_vector": list(self.law_vector),
+            "center": list(self.center),
+            "eps": self.eps,
+        }
+
 
 class RotationLayer(SymmetryLayer):
     """
@@ -194,6 +211,7 @@ class RotationLayer(SymmetryLayer):
         self.times = int(times)
         self.eps = eps
         self.axis = axis
+        self.mode = mode
         before = np.eye(3)
         if mode == "I":
             before = before * -1.0
@@ -239,6 +257,17 @@ class RotationLayer(SymmetryLayer):
             return rotated_atoms, rotated_bonds
         return self.dedup(rotated_atoms, rotated_bonds)
 
+    @property
+    def json(self):
+        return {
+            "type": "symmetry.rotation",
+            "mode": self.mode,
+            "axis": list(self.axis),
+            "center": list(self.center),
+            "times": self.times,
+            "eps": self.eps,
+        }
+
 
 if __name__ == "__main__":
     from lib import Atom
@@ -267,4 +296,4 @@ if __name__ == "__main__":
         layer.atom_ids, lambda atom_id: layer.atoms[atom_id].element == "C"
     )
     layer.set_bond(C1, C2, 1.0)
-    print(molecule_output(layer))
+    print(molecule_text(layer))

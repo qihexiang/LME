@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Any
 import uuid
 import numpy as np
 from pydash import py_
@@ -46,7 +47,7 @@ class Atom:
     @property
     def element(self):
         return self.__element
-    
+
     @property
     def position(self):
         return self.__position
@@ -68,13 +69,17 @@ class Atom:
         x, y, z = self.position
         return f"{self.element} {x} {y} {z}"
 
+    @property
+    def json(self):
+        return {"element": self.element, "position": list(self.position)}
+
 
 class UUIDPair:
     def __init__(self, ids) -> None:
         self.a, self.b = ids
 
-    def has_atom(self, atom_id) -> bool:
-        return self.another_atom(atom_id) is not None
+    def has_uuid(self, target_id) -> bool:
+        return self.another_atom(target_id) is not None
 
     def another_atom(self, atom_id):
         if self.a == atom_id:
@@ -97,6 +102,10 @@ class UUIDPair:
     def __repr__(self) -> str:
         return f"{self.a} {self.b}"
 
+    @property
+    def json(self):
+        return f"{str(self.a)} {str(self.b)}"
+
 
 def mirror_matrix(law_vector):
     [x, y, z] = law_vector / np.linalg.norm(law_vector)
@@ -117,7 +126,6 @@ def rotate_matrix(axis, times):
 
 
 if __name__ == "__main__":
-    a1 = Atom("C", [1, 1, 0])
-    a2 = a1.move_to([1, 2, 0])
-    s = {a1: 1, a2: 2}
-    print(s)
+    import json
+
+    print(json.dumps(Atom("C", [1, 2, 3]).json))
