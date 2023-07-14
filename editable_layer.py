@@ -198,7 +198,7 @@ class EditableLayer(StateContainer):
 
     def rotation_selected(self, axis, center, angle):
         center = np.array(center, dtype="float64")
-        matrix = rotate_matrix(axis, 360.0 / angle)
+        matrix = rotate_matrix(axis, angle)
 
         def calculate_target_position(origin):
             return np.matmul((origin - center), matrix) + center

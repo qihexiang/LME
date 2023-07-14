@@ -119,10 +119,10 @@ def mirror_matrix(law_vector):
     )
 
 
-def rotate_matrix(axis, times):
+def rotate_matrix(axis, angle):
     axis = np.array(axis, dtype="float64")
     axis = axis / np.linalg.norm(axis)
-    return R.from_rotvec(axis * (360 / times), degrees=True).as_matrix()
+    return R.from_rotvec(axis * angle, degrees=True).as_matrix()
 
 
 if __name__ == "__main__":

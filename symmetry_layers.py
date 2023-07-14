@@ -217,7 +217,7 @@ class RotationLayer(SymmetryLayer):
             before = before * -1.0
         if mode == "S":
             before = mirror_matrix(axis)
-        self.matrix = np.matmul(before, rotate_matrix(axis, times))
+        self.matrix = np.matmul(before, rotate_matrix(axis, 360. / times))
         self.dedup = DedupLayer(self.eps) if mode in ["I", "S"] else None
 
     def rotate(self, positions):
