@@ -55,6 +55,9 @@ class StaticLayer:
     @property
     def bond_ids(self):
         return self.bonds.keys()
+    
+    def __repr__(self) -> str:
+        return molecule_output(self)
 
 
 class EditableLayer(StateContainer):
@@ -199,6 +202,8 @@ class EditableLayer(StateContainer):
         self.__patch_to_atoms(rotated)
         return 0
 
+    def __repr__(self):
+        return molecule_output(self)
 
 if __name__ == "__main__":
     from lib import Atom
