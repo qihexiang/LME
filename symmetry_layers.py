@@ -36,6 +36,12 @@ class AtomWithId(Atom):
 
 
 def atoms_format_transformer(fn):
+    """
+    该装饰器会将参数atoms的结构{UUID: Atom}转换为[AtomWithId]后传给被装饰函数进行计算
+
+    计算结束后, 该装饰器会将返回的atoms从[AtomWithId]转换回{UUID: Atom}
+    """
+
     def wrapped(self, atoms, bonds):
         atom_ids = py_.filter(atoms.keys(), lambda atom_id: atoms[atom_id] is not None)
         atoms = py_.map(atom_ids, lambda uid: atoms[uid])
@@ -256,10 +262,9 @@ if __name__ == "__main__":
     layer.select([H])
     layer.set_element_selected("Cl")
 
-    # layer.remove_subscriber(output)
-
     layer = EditableLayer(output_layer)
-    Cl = py_.find(layer.atom_ids, lambda atom_id: layer.atoms[atom_id].element == "Cl")
-    layer.select([Cl])
-    layer.set_element_selected("F")
+    [C1, C2] = py_.filter(
+        layer.atom_ids, lambda atom_id: layer.atoms[atom_id].element == "C"
+    )
+    layer.set_bond(C1, C2, 1.0)
     print(molecule_output(layer))
