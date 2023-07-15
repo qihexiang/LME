@@ -32,7 +32,9 @@ def molecule_text(target) -> str:
 
 def atoms_bonds_loader(atoms_dict, bonds_dict):
     atoms = {
-        UUID(atom_id): Atom(atoms_dict[atom_id]["element"], atoms_dict[atom_id]["position"])
+        UUID(atom_id): Atom(
+            atoms_dict[atom_id]["element"], atoms_dict[atom_id]["position"]
+        )
         if atoms_dict[atom_id] is not None
         else None
         for atom_id in atoms_dict.keys()
@@ -81,11 +83,25 @@ class StaticLayer:
 
     @property
     def atoms(self):
-        return self.__atoms | {}
+        return {
+            atom_id: self.__atoms[atom_id]
+            for atom_id in py_.filter(
+                self.__atoms.keys(), lambda atom_id: self.__atoms[atom_id] is not None
+            )
+        }
 
     @property
     def bonds(self):
-        return self.__bonds | {}
+        existed_atoms = self.atom_ids
+        return {
+            bond_id: self.__bonds[bond_id]
+            for bond_id in py_.filter(
+                self.__bonds.keys(),
+                lambda bond_id: bond_id.a in existed_atoms
+                and bond_id.b in existed_atoms
+                and self.__bonds[bond_id] is not None,
+            )
+        }
 
     @property
     def atom_ids(self):
@@ -129,15 +145,41 @@ class EditableLayer(StateContainer):
 
     @property
     def atoms(self):
-        return self.base.atoms | self.state[0]
+        overlayed = self.base.atoms | self.state[0]
+        existed = {
+            atom_id: overlayed[atom_id]
+            for atom_id in py_.filter(
+                overlayed.keys(), lambda atom_id: overlayed[atom_id] is not None
+            )
+        }
+        return existed
 
     @property
     def bonds(self):
-        return self.base.bonds | self.state[1]
+        existed_atom_ids = self.atom_ids
+        overlayed = self.base.bonds | self.state[1]
+        existed = {
+            bond_id: overlayed[bond_id]
+            for bond_id in py_.filter(
+                overlayed.keys(),
+                lambda bond_id: bond_id.a in existed_atom_ids
+                and bond_id.b in existed_atom_ids
+                and overlayed[bond_id] is not None,
+            )
+        }
+        return existed
 
     @property
     def selected(self):
         return self.state[2]
+
+    @property
+    def atom_ids(self):
+        return set(self.atoms.keys())
+
+    @property
+    def bond_ids(self):
+        return set(self.bonds.keys())
 
     def __patch_to_atoms(self, patch):
         def updator(state):
@@ -192,14 +234,6 @@ class EditableLayer(StateContainer):
 
         self.update(updator)
         return 0
-
-    @property
-    def atom_ids(self):
-        return set(self.atoms.keys())
-
-    @property
-    def bond_ids(self):
-        return set(self.bonds.keys())
 
     def add_atoms(self, atoms):
         # to_add = {uuid(): atom for atom in atoms}
@@ -299,11 +333,14 @@ if __name__ == "__main__":
         editor.atom_ids, lambda atom_id: editor.atoms[atom_id].element == "C"
     )
     editor.set_bond(C1, C2, 1.0)
+    exported = editor.__repr__()
     print(editor)
     with open("./export.json", "w") as f:
         f.write(json.dumps(editor.export))
-    
+
     with open("./export.json", "r") as f:
         data = f.read()
         data = json.loads(data)
-        print(EditableLayer(load=data))
+        layer = EditableLayer(load=data)
+        imported = layer.__repr__()
+        assert exported == imported
