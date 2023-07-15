@@ -5,8 +5,25 @@ LME is a molecule model editor designed with layers.
 Plan to implement following functions:
 
 - [x] Manual editable layer
+  - [x] functions
+  - [x] export
+  - [x] load
+- [x] Readonly base layer
+  - [x] export
+  - [x] load
 - [ ] Helper layers
-  - [x] Symmetry layers
+  - [ ] Symmetry layers
+    - [ ] Inverse layer
+      - [x] functions
+      - [x] export
+      - [ ] import
+    - [ ] Mirror layer
+      - [x] functions
+      - [x] export
+      - [ ] import
+    - [ ] Rotate layer 
+      - [x] functions
+      - [x] export
+      - [ ] import
   - [ ] Batch layers
-  - [ ] Snapshot layers
 - [ ] Multi-format read/write support
