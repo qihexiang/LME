@@ -3,6 +3,7 @@ from lib import UUIDPair, StateContainer, rotate_matrix
 from uuid import uuid4 as uuid
 from pydash import py_
 import json
+from uuid import UUID
 
 
 def molecule_text(target) -> str:
@@ -29,8 +30,32 @@ def molecule_text(target) -> str:
     return output
 
 
+def atoms_bonds_loader(atoms_dict, bonds_dict):
+    atoms = {
+        UUID(atom_id): Atom(atoms_dict[atom_id]["element"], atoms_dict[atom_id]["position"])
+        if atoms_dict[atom_id] is not None
+        else None
+        for atom_id in atoms_dict.keys()
+    }
+
+    bonds = {
+        UUIDPair(tuple(py_.map(bond_id.split(" "), UUID))): bonds_dict[bond_id]
+        for bond_id in bonds_dict.keys()
+    }
+
+    return atoms, bonds
+
+
 class StaticLayer:
-    def __init__(self, atoms=dict(), bonds=dict(), contains=None) -> None:
+    def __init__(self, atoms=dict(), bonds=dict(), contains=None, load=None) -> None:
+        if load is not None:
+            if load["type"] != "static":
+                raise ValueError("Not a StaticLayer dict")
+            self.__contains = load["contains"]
+            self.__atoms, self.__bonds = atoms_bonds_loader(
+                load["atoms"], load["bonds"]
+            )
+            return None
         if contains is not None:
             (editable, transfomers) = contains
             self.__contains = {
@@ -93,10 +118,14 @@ class StaticLayer:
 class EditableLayer(StateContainer):
     def __init__(self, base=StaticLayer(), load=None) -> None:
         if load is not None:
-            super().__init__((load["atoms"], load["bonds"], set()))
+            if load["type"] != "editable":
+                raise ValueError("Not a EditableLayer dict")
+            atoms, bonds = atoms_bonds_loader(load["atoms"], load["bonds"])
+            super().__init__((atoms, bonds, set()))
+            self.base = StaticLayer(load=load["base"])
         else:
             super().__init__((dict(), dict(), set()))
-        self.base = base
+            self.base = base
 
     @property
     def atoms(self):
@@ -273,3 +302,8 @@ if __name__ == "__main__":
     print(editor)
     with open("./export.json", "w") as f:
         f.write(json.dumps(editor.export))
+    
+    with open("./export.json", "r") as f:
+        data = f.read()
+        data = json.loads(data)
+        print(EditableLayer(load=data))
