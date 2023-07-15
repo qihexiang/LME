@@ -70,7 +70,7 @@ class Atom:
         return f"{self.element} {x} {y} {z}"
 
     @property
-    def json(self):
+    def export(self):
         return {"element": self.element, "position": list(self.position)}
 
 
@@ -103,7 +103,7 @@ class UUIDPair:
         return f"{self.a} {self.b}"
 
     @property
-    def json(self):
+    def export(self):
         return f"{str(self.a)} {str(self.b)}"
 
 
@@ -128,4 +128,4 @@ def rotate_matrix(axis, angle):
 if __name__ == "__main__":
     import json
 
-    print(json.dumps(Atom("C", [1, 2, 3]).json))
+    print(json.dumps(Atom("C", [1, 2, 3]).export))

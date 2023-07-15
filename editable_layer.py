@@ -30,7 +30,20 @@ def molecule_text(target) -> str:
 
 
 class StaticLayer:
-    def __init__(self, atoms=dict(), bonds=dict()) -> None:
+    def __init__(self, atoms=dict(), bonds=dict(), contains=None) -> None:
+        if contains is not None:
+            (editable, transfomers) = contains
+            self.__contains = {
+                "editable": editable.export,
+                "transfomers": py_.map(
+                    transfomers, lambda transformer: transformer.export
+                ),
+            }
+            atoms, bonds = editable.atoms, editable.bonds
+            for transformer in transfomers:
+                atoms, bonds = transformer(atoms, bonds)
+        else:
+            self.__contains = None
         atom_ids = py_.filter(atoms.keys(), lambda atom_id: atoms[atom_id] is not None)
         self.__atoms = {atom_id: atoms[atom_id] for atom_id in atom_ids}
         bond_ids = py_.filter(
@@ -61,20 +74,28 @@ class StaticLayer:
         return molecule_text(self)
 
     @property
-    def json(self):
+    def export(self):
         atoms = self.atoms
         bonds = self.bonds
         atoms = {
-            str(atom_id): atoms[atom_id].json if atoms[atom_id] is not None else None
+            str(atom_id): atoms[atom_id].export if atoms[atom_id] is not None else None
             for atom_id in atoms.keys()
         }
-        bonds = {bond_id.json: bonds[bond_id] for bond_id in bonds.keys()}
-        return {"type": "static", "atoms": atoms, "bonds": bonds}
+        bonds = {bond_id.export: bonds[bond_id] for bond_id in bonds.keys()}
+        return {
+            "type": "static",
+            "atoms": atoms,
+            "bonds": bonds,
+            "contains": self.__contains,
+        }
 
 
 class EditableLayer(StateContainer):
-    def __init__(self, base=StaticLayer()) -> None:
-        super().__init__((dict(), dict(), set()))
+    def __init__(self, base=StaticLayer(), load=None) -> None:
+        if load is not None:
+            super().__init__((load["atoms"], load["bonds"], set()))
+        else:
+            super().__init__((dict(), dict(), set()))
         self.base = base
 
     @property
@@ -218,73 +239,37 @@ class EditableLayer(StateContainer):
         return molecule_text(self)
 
     @property
-    def json(self):
+    def export(self):
         atoms, bonds, _ = self.state
         atoms = {
-            str(atom_id): atoms[atom_id].json if atoms[atom_id] is not None else None
+            str(atom_id): atoms[atom_id].export if atoms[atom_id] is not None else None
             for atom_id in atoms.keys()
         }
-        bonds = {bond_id.json: bonds[bond_id] for bond_id in bonds.keys()}
+        bonds = {bond_id.export: bonds[bond_id] for bond_id in bonds.keys()}
         return {
             "type": "editable",
             "atoms": atoms,
             "bonds": bonds,
-            "base": self.base.json,
+            "base": self.base.export,
         }
 
 
 if __name__ == "__main__":
     from lib import Atom
+    from symmetry_layers import RotationLayer
+    import json
 
-    selected = set()
-
-    def on_select(state):
-        global selected
-        _, _, s = state
-        if s == selected:
-            pass
-        elif len(s) == 0:
-            print(f"Deselect all")
-        else:
-            print(f"Select changed: {s}")
-            selected = s
-
-    layer = EditableLayer()
-    layer.add_subscriber(on_select)
-    [C, H1, H2, H3, H4] = layer.add_atoms(
-        [
-            Atom("C", [0, 0, 0]),
-            Atom("H", [1, 1, 0]),
-            Atom("H", [1, -1, 0]),
-            Atom("H", [-1, 0, 1]),
-            Atom("H", [-1, 0, -1]),
-        ]
+    editor = EditableLayer()
+    C3_axis = RotationLayer([0, 0, 1], 3, "C")
+    C2_axis = RotationLayer([0, 1, 0], 2, "C")
+    [C, H] = editor.add_atoms([Atom("C", [0, 0, 1]), Atom("H", [1, 0, 1.2])])
+    editor.set_bond(C, H, 1.0)
+    locked = StaticLayer(contains=(editor, [C3_axis, C2_axis]))
+    editor = EditableLayer(base=locked)
+    [C1, C2] = py_.filter(
+        editor.atom_ids, lambda atom_id: editor.atoms[atom_id].element == "C"
     )
-    for H in [H1, H2, H3, H4]:
-        layer.set_bond(C, H, 1.0)
-    # print(layer)
-
-    layer.select([C, H1, H2])
-    layer.rotation_selected([1, 0, 0], [0, 0, 0], 90.0)
-
-    # print(layer)
-
-    layer.deselect_all()
-    layer.select([H1, H2, H3, H4])
-    layer.set_element_selected("Cl")
-    # print(layer)
-
-    layer.select_all()
-    layer.translation_selected([2, 1, 0])
-    # print(layer)
-
-    layer.deselect([H1, H2, H3, H4])
-    layer.set_element_selected("Si")
-    # print(layer)
-
-    layer.select_all()
-    layer.deselect([C, H1, H2])
-    layer.remove_selected()
-    # print(layer)
-
-    print(json.dumps(layer.json))
+    editor.set_bond(C1, C2, 1.0)
+    print(editor)
+    with open("./export.json", "w") as f:
+        f.write(json.dumps(editor.export))

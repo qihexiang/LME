@@ -100,7 +100,7 @@ class SymmetryLayer:
         return new_bonds
 
     @property
-    def json(self):
+    def export(self):
         raise NotImplemented("Should implement in sub-class")
 
 
@@ -138,7 +138,7 @@ class InverseLayer(SymmetryLayer):
         return atoms, bonds
 
     @property
-    def json(self):
+    def export(self):
         return {"type": "symmetry.inv", "center": list(self.center), "eps": self.eps}
 
 
@@ -176,7 +176,7 @@ class MirrorLayer(SymmetryLayer):
         return atoms, bonds
 
     @property
-    def json(self):
+    def export(self):
         return {
             "type": "symmetry.mirror",
             "law_vector": list(self.law_vector),
@@ -217,7 +217,7 @@ class RotationLayer(SymmetryLayer):
             before = before * -1.0
         if mode == "S":
             before = mirror_matrix(axis)
-        self.matrix = np.matmul(before, rotate_matrix(axis, 360. / times))
+        self.matrix = np.matmul(before, rotate_matrix(axis, 360.0 / times))
         self.dedup = DedupLayer(self.eps) if mode in ["I", "S"] else None
 
     def rotate(self, positions):
@@ -258,7 +258,7 @@ class RotationLayer(SymmetryLayer):
         return self.dedup(rotated_atoms, rotated_bonds)
 
     @property
-    def json(self):
+    def export(self):
         return {
             "type": "symmetry.rotation",
             "mode": self.mode,

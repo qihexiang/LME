@@ -45,7 +45,7 @@ class DedupLayer:
             kept, removed = group[0], group[1:]
             connected = {}
             for atom in removed:
-                targets = py_.filter(bonds.keys(), lambda ap: ap.has_atom(atom))
+                targets = py_.filter(bonds.keys(), lambda ap: ap.has_uuid(atom))
                 if len(targets) == 0:
                     pass
                 else:
@@ -62,7 +62,7 @@ class DedupLayer:
         return atoms, bonds
 
     @property
-    def json(self):
+    def export(self):
         return {"type": "dedup", "eps": self.eps}
 
 
