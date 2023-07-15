@@ -1,5 +1,4 @@
 from copy import deepcopy
-from typing import Any
 import uuid
 import numpy as np
 from pydash import py_
@@ -72,6 +71,46 @@ class Atom:
     @property
     def export(self):
         return {"element": self.element, "position": list(self.position)}
+
+
+class AtomWithId(Atom):
+    @staticmethod
+    def from_atoms(atoms_dict):
+        return py_.filter(
+            [
+                AtomWithId(atom_id, atoms_dict[atom_id])
+                if atoms_dict[atom_id] is not None
+                else None
+                for atom_id in atoms_dict.keys()
+            ],
+            lambda atom_with_id: atom_with_id is not None,
+        )
+
+    @staticmethod
+    def to_atoms_dict(atoms_list):
+        return {
+            atom_with_id.get_id(): atom_with_id.__to_atom()
+            for atom_with_id in atoms_list
+        }
+
+    def __init__(self, atom_id, atom):
+        super().__init__(atom.element, atom.position)
+        self.__id = atom_id
+
+    def get_id(self):
+        return self.__id
+
+    def replace(self, element):
+        return AtomWithId(self.get_id(), super().replace(element))
+
+    def move_to(self, target) -> None:
+        return AtomWithId(self.get_id(), super().move_to(target))
+
+    def copy(self):
+        return AtomWithId(uuid.uuid4(), super().copy())
+
+    def __to_atom(self):
+        return Atom(self.element, self.position)
 
 
 class UUIDPair:

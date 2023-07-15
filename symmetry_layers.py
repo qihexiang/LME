@@ -2,57 +2,9 @@ import numpy as np
 from copy import deepcopy
 from pydash import py_
 from editable_layer import StaticLayer, molecule_text
-from lib import UUIDPair, EPS, Atom, mirror_matrix, rotate_matrix
-from scipy.spatial.transform import Rotation as R
+from lib import AtomWithId, UUIDPair, EPS, Atom, mirror_matrix, rotate_matrix
 from util_layers import DedupLayer
 from uuid import uuid4 as uuid
-
-
-def compose_layers(layers):
-    def composed(a, b):
-        for layer in layers:
-            a, b = layer(a, b)
-        return a, b
-
-    return composed
-
-
-class AtomWithId(Atom):
-    def __init__(self, atom_id, atom):
-        super().__init__(atom.element, atom.position)
-        self.__id = atom_id
-
-    def get_id(self):
-        return self.__id
-
-    def replace(self, element):
-        return AtomWithId(self.get_id(), super().replace(element))
-
-    def move_to(self, target) -> None:
-        return AtomWithId(self.get_id(), super().move_to(target))
-
-    def copy(self):
-        return AtomWithId(uuid(), super().copy())
-
-
-def atoms_format_transformer(fn):
-    """
-    该装饰器会将参数atoms的结构{UUID: Atom}转换为[AtomWithId]后传给被装饰函数进行计算
-
-    计算结束后, 该装饰器会将返回的atoms从[AtomWithId]转换回{UUID: Atom}
-    """
-
-    def wrapped(self, atoms, bonds):
-        atom_ids = py_.filter(atoms.keys(), lambda atom_id: atoms[atom_id] is not None)
-        atoms = py_.map(atom_ids, lambda uid: atoms[uid])
-        atom_with_ids = [
-            AtomWithId(atom_id, atom) for atom_id, atom in zip(atom_ids, atoms)
-        ]
-        atoms, bonds = fn(self, atom_with_ids, bonds)
-        atoms = {atom.get_id(): Atom(atom.element, atom.position) for atom in atoms}
-        return atoms, bonds
-
-    return wrapped
 
 
 class SymmetryLayer:
@@ -125,8 +77,8 @@ class InverseLayer(SymmetryLayer):
         inversed = -1 * centered
         return inversed + self.center
 
-    @atoms_format_transformer
     def __call__(self, atoms, bonds):
+        atoms = AtomWithId.from_atoms(atoms)
         inversed_positions = self.inverse(py_.map(atoms, lambda atom: atom.position))
         inversed = (
             py_.chain(zip(self.copy_atoms(atoms), inversed_positions))
@@ -135,6 +87,7 @@ class InverseLayer(SymmetryLayer):
         )
         atoms = py_.uniq_by(atoms + inversed, lambda atom: atom.get_id())
         bonds = bonds | self.generate_bonds(atoms, inversed, bonds)
+        atoms = AtomWithId.to_atoms_dict(atoms)
         return atoms, bonds
 
     @property
@@ -163,8 +116,8 @@ class MirrorLayer(SymmetryLayer):
     def should_ignore_on_copy(self, atom):
         return self.on_mirror(atom.position)
 
-    @atoms_format_transformer
     def __call__(self, atoms, bonds):
+        atoms = AtomWithId.from_atoms(atoms)
         mirrored_positions = self.mirror(py_.map(atoms, lambda atom: atom.position))
         mirrored = (
             py_.chain(zip(self.copy_atoms(atoms), mirrored_positions))
@@ -173,6 +126,7 @@ class MirrorLayer(SymmetryLayer):
         )
         atoms = py_.uniq_by(atoms + mirrored, lambda atom: atom.get_id())
         bonds = bonds | self.generate_bonds(atoms, mirrored, bonds)
+        atoms = AtomWithId.to_atoms_dict(atoms)
         return atoms, bonds
 
     @property
@@ -239,8 +193,8 @@ class RotationLayer(SymmetryLayer):
             return self.on_axis(atom.position)
         return self.on_center(atom.position)
 
-    @atoms_format_transformer
     def __call__(self, atoms, bonds):
+        atoms = AtomWithId.from_atoms(atoms)
         rotated_atoms = deepcopy(atoms)
         rotated_bonds = deepcopy(bonds)
         current_positions = py_.map(atoms, lambda atom: atom.position)
@@ -253,6 +207,7 @@ class RotationLayer(SymmetryLayer):
             rotated_atoms += py_.map(atom_positions, lambda ap: ap[0].move_to(ap[1]))
             rotated_bonds = rotated_bonds | self.generate_bonds(atoms, new_atoms, bonds)
         rotated_atoms = py_.uniq_by(rotated_atoms, lambda atom: atom.get_id())
+        rotated_atoms = AtomWithId.to_atoms_dict(rotated_atoms)
         if self.dedup is None:
             return rotated_atoms, rotated_bonds
         return self.dedup(rotated_atoms, rotated_bonds)

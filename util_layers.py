@@ -1,7 +1,4 @@
-from typing import Any
-from editable_layer import EditableLayer, StaticLayer
-from lib import EPS, UUIDPair
-from multiprocessing import Pool
+from lib import EPS, AtomWithId, UUIDPair
 from pydash import py_
 import numpy as np
 from copy import deepcopy
@@ -12,6 +9,8 @@ class DedupLayer:
         self.eps = eps
 
     def __call__(self, atoms, bonds):
+        atoms = AtomWithId.from_atoms(atoms)
+
         def find_dups(atom):
             dups = (
                 py_.chain(atoms)
@@ -59,6 +58,7 @@ class DedupLayer:
                 for another in connected.keys()
             }
             atoms = py_.filter(atoms, lambda atom: atom.get_id() not in removed)
+        atoms = AtomWithId.to_atoms_dict(atoms)
         return atoms, bonds
 
     @property
