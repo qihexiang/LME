@@ -1,8 +1,11 @@
 import numpy as np
 from copy import deepcopy
 from pydash import py_
-from editable_layer import StaticLayer, molecule_text
-from lib import AtomWithId, UUIDPair, EPS, Atom, mirror_matrix, rotate_matrix
+from libs.molecule_text import molecule_text
+from libs.Atom import Atom, AtomWithId
+from libs.UUIDPair import UUIDPair
+from libs.constants import EPS
+from libs.matrix import mirror_matrix, rotate_matrix
 from util_layers import DedupLayer
 from uuid import uuid4 as uuid
 
@@ -54,7 +57,18 @@ class SymmetryLayer:
     @property
     def export(self):
         raise NotImplemented("Should implement in sub-class")
-
+    
+    @staticmethod
+    def from_dict(data):
+        center = data["center"]
+        eps = data["eps"]
+        if(data["type"] == "symmetry.inv"):
+            return InverseLayer(center, eps)
+        if(data["type"] == "symmetry.mirror"):
+            return MirrorLayer(data["law_vector"], center, eps)
+        if(data["type"] == "symmetry.rotation"):
+            return RotationLayer(data["axis"], data["times"], data["mode"], center, eps)
+        raise ValueError("Invalid input data")
 
 class InverseLayer(SymmetryLayer):
     """
@@ -225,8 +239,8 @@ class RotationLayer(SymmetryLayer):
 
 
 if __name__ == "__main__":
-    from lib import Atom
     from editable_layer import EditableLayer
+    from static_layer import StaticLayer
 
     symmetry = RotationLayer([0, 0, 1], 6, "S")
 

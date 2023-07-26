@@ -1,7 +1,10 @@
-from lib import EPS, AtomWithId, UUIDPair
 from pydash import py_
 import numpy as np
 from copy import deepcopy
+from libs.Atom import AtomWithId
+from libs.UUIDPair import UUIDPair
+
+from libs.constants import EPS
 
 
 class DedupLayer:

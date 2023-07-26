@@ -1,135 +1,13 @@
+import uuid
 import numpy as np
-from lib import UUIDPair, StateContainer, rotate_matrix
-from uuid import uuid4 as uuid
 from pydash import py_
 import json
-from uuid import UUID
-
-
-def molecule_text(target) -> str:
-    output = ""
-    output += "atoms:\n"
-    atom_ids = py_.filter(
-        target.atom_ids, lambda atom_id: target.atoms[atom_id] is not None
-    )
-    atoms = target.atoms
-    atoms = py_.map(atom_ids, lambda atom_id: atoms[atom_id])
-    for i, atom in enumerate(atoms):
-        output += f"{i+1} {atom}\n"
-
-    bond_ids = target.bond_ids
-    bonds = target.bonds
-    output += "bonds:\n"
-    for bond_id in bond_ids:
-        a_idx, b_idx = py_.find_index(
-            atom_ids, lambda atom_id: atom_id == bond_id.a
-        ), py_.find_index(atom_ids, lambda atom_id: atom_id == bond_id.b)
-        if -1 not in [a_idx, b_idx]:
-            output += f"{a_idx + 1} {b_idx + 1} {bonds[bond_id]}\n"
-
-    return output
-
-
-def atoms_bonds_loader(atoms_dict, bonds_dict):
-    atoms = {
-        UUID(atom_id): Atom(
-            atoms_dict[atom_id]["element"], atoms_dict[atom_id]["position"]
-        )
-        if atoms_dict[atom_id] is not None
-        else None
-        for atom_id in atoms_dict.keys()
-    }
-
-    bonds = {
-        UUIDPair(tuple(py_.map(bond_id.split(" "), UUID))): bonds_dict[bond_id]
-        for bond_id in bonds_dict.keys()
-    }
-
-    return atoms, bonds
-
-
-class StaticLayer:
-    def __init__(self, atoms=dict(), bonds=dict(), contains=None, load=None) -> None:
-        if load is not None:
-            if load["type"] != "static":
-                raise ValueError("Not a StaticLayer dict")
-            self.__contains = load["contains"]
-            self.__atoms, self.__bonds = atoms_bonds_loader(
-                load["atoms"], load["bonds"]
-            )
-            return None
-        if contains is not None:
-            (editable, transfomers) = contains
-            self.__contains = {
-                "editable": editable.export,
-                "transfomers": py_.map(
-                    transfomers, lambda transformer: transformer.export
-                ),
-            }
-            atoms, bonds = editable.atoms, editable.bonds
-            for transformer in transfomers:
-                atoms, bonds = transformer(atoms, bonds)
-        else:
-            self.__contains = None
-        atom_ids = py_.filter(atoms.keys(), lambda atom_id: atoms[atom_id] is not None)
-        self.__atoms = {atom_id: atoms[atom_id] for atom_id in atom_ids}
-        bond_ids = py_.filter(
-            bonds.keys(),
-            lambda bond_id: bonds[bond_id] is not None
-            and bond_id.a in atom_ids
-            and bond_id.b in atom_ids,
-        )
-        self.__bonds = {bond_id: bonds[bond_id] for bond_id in bond_ids}
-
-    @property
-    def atoms(self):
-        return {
-            atom_id: self.__atoms[atom_id]
-            for atom_id in py_.filter(
-                self.__atoms.keys(), lambda atom_id: self.__atoms[atom_id] is not None
-            )
-        }
-
-    @property
-    def bonds(self):
-        existed_atoms = self.atom_ids
-        return {
-            bond_id: self.__bonds[bond_id]
-            for bond_id in py_.filter(
-                self.__bonds.keys(),
-                lambda bond_id: bond_id.a in existed_atoms
-                and bond_id.b in existed_atoms
-                and self.__bonds[bond_id] is not None,
-            )
-        }
-
-    @property
-    def atom_ids(self):
-        return self.atoms.keys()
-
-    @property
-    def bond_ids(self):
-        return self.bonds.keys()
-
-    def __repr__(self) -> str:
-        return molecule_text(self)
-
-    @property
-    def export(self):
-        atoms = self.atoms
-        bonds = self.bonds
-        atoms = {
-            str(atom_id): atoms[atom_id].export if atoms[atom_id] is not None else None
-            for atom_id in atoms.keys()
-        }
-        bonds = {bond_id.export: bonds[bond_id] for bond_id in bonds.keys()}
-        return {
-            "type": "static",
-            "atoms": atoms,
-            "bonds": bonds,
-            "contains": self.__contains,
-        }
-
+from libs.StateContainer import StateContainer
+from libs.UUIDPair import UUIDPair
+from libs.atoms_bonds_loader import atoms_bonds_loader
+from libs.matrix import rotate_matrix
+from libs.molecule_text import molecule_text
+from static_layer import StaticLayer
 
 class EditableLayer(StateContainer):
     def __init__(self, base=StaticLayer(), load=None) -> None:
@@ -237,7 +115,7 @@ class EditableLayer(StateContainer):
 
     def add_atoms(self, atoms):
         # to_add = {uuid(): atom for atom in atoms}
-        to_add = py_.map(atoms, lambda atom: (uuid(), atom))
+        to_add = py_.map(atoms, lambda atom: (uuid.uuid4(), atom))
         patch = {atom_id: atom for atom_id, atom in to_add}
         self.__patch_to_atoms(patch)
         return py_.map(to_add, lambda id_atom: id_atom[0])
@@ -318,7 +196,7 @@ class EditableLayer(StateContainer):
 
 
 if __name__ == "__main__":
-    from lib import Atom
+    from libs.Atom import Atom
     from symmetry_layers import RotationLayer
     import json
 
@@ -344,3 +222,7 @@ if __name__ == "__main__":
         layer = EditableLayer(load=data)
         imported = layer.__repr__()
         assert exported == imported
+        editable, transformers = layer.base.extract()
+        print(editable, transformers)
+        # print(layer.base.contains)
+
