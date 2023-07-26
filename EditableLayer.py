@@ -195,6 +195,43 @@ class EditableLayer(StateContainer):
         }
 
 
+class Polymer(StaticLayer):
+    def __init__(self, atoms, bonds, entry_idx, center_idx) -> None:
+        super().__init__(atoms, bonds)
+        self._vector = self.atoms[center_idx].position - self.atoms[entry_idx].position
+        self._vector = self._vector / np.linalg.norm(self._vector)
+        self._entry_idx = entry_idx
+        self._center_idx = center_idx
+
+    def output(self, direction):
+        updated_atom_ids = {
+            origin_id: uuid.uuid4() for origin_id in self.atom_ids
+        }
+
+        updated_atoms_table = {
+            updated_atom_ids[origin_id]: self.atoms[origin_id] for origin_id in self.atom_ids
+        }
+
+        updated_bond_ids = {
+            uuid_pair: UUIDPair(tuple(py_.map(uuid_pair, lambda origin_uuid: updated_atom_ids[origin_uuid]))) for uuid_pair in self.bond_ids
+        }
+
+        updated_bonds_table = {
+            updated_bond_ids[origin_uuid_pair]: self.bonds[origin_uuid_pair] for origin_uuid_pair in self.bond_ids
+        }
+
+        updated_center_idx = self._center_idx
+
+        direction = np.array(direction) / np.linalg.norm(direction)
+        axis = np.cross(self._vector, direction)
+        angle = np.dot(self._vector, direction)
+
+        updated_static = StaticLayer(updated_atoms_table, updated_bonds_table)
+        editable_layer = EditableLayer(updated_static)
+        editable_layer.select_all()
+        editable_layer.rotation_selected(axis, editable_layer.atoms[updated_center_idx].position, angle)
+        return editable_layer.atoms, editable_layer.bonds
+
 if __name__ == "__main__":
     from libs.Atom import Atom
     from SymmetryLayers import RotationLayer
