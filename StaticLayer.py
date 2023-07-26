@@ -2,8 +2,8 @@ from copy import deepcopy
 from libs.atoms_bonds_loader import atoms_bonds_loader
 from libs.constants import PRODUCTION
 from libs.molecule_text import molecule_text
-from symmetry_layers import SymmetryLayer
-from util_layers import DedupLayer
+from SymmetryLayers import SymmetryLayer
+from UtilLayers import DedupLayer
 from pydash import py_
 
 
@@ -105,7 +105,7 @@ class StaticLayer:
         raise ValueError("Invalid transformer inforamtion")
 
     def extract(self):
-        from editable_layer import EditableLayer
+        from EditableLayer import EditableLayer
         editable = EditableLayer(load=self.contains["editable"])
         transformers = py_.map(self.contains["transformers"], StaticLayer.__extract_transformer)
         return editable, transformers

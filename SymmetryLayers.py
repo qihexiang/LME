@@ -6,7 +6,7 @@ from libs.Atom import Atom, AtomWithId
 from libs.UUIDPair import UUIDPair
 from libs.constants import EPS
 from libs.matrix import mirror_matrix, rotate_matrix
-from util_layers import DedupLayer
+from UtilLayers import DedupLayer
 from uuid import uuid4 as uuid
 
 
@@ -239,8 +239,8 @@ class RotationLayer(SymmetryLayer):
 
 
 if __name__ == "__main__":
-    from editable_layer import EditableLayer
-    from static_layer import StaticLayer
+    from EditableLayer import EditableLayer
+    from StaticLayer import StaticLayer
 
     symmetry = RotationLayer([0, 0, 1], 6, "S")
 

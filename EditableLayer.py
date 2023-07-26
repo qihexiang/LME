@@ -7,7 +7,7 @@ from libs.UUIDPair import UUIDPair
 from libs.atoms_bonds_loader import atoms_bonds_loader
 from libs.matrix import rotate_matrix
 from libs.molecule_text import molecule_text
-from static_layer import StaticLayer
+from StaticLayer import StaticLayer
 
 class EditableLayer(StateContainer):
     def __init__(self, base=StaticLayer(), load=None) -> None:
@@ -197,7 +197,7 @@ class EditableLayer(StateContainer):
 
 if __name__ == "__main__":
     from libs.Atom import Atom
-    from symmetry_layers import RotationLayer
+    from SymmetryLayers import RotationLayer
     import json
 
     editor = EditableLayer()
