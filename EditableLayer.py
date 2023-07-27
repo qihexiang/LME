@@ -5,6 +5,7 @@ import json
 from libs.StateContainer import StateContainer
 from libs.UUIDPair import UUIDPair
 from libs.atoms_bonds_loader import atoms_bonds_loader
+from libs.constants import EPS
 from libs.matrix import rotate_matrix
 from libs.molecule_text import molecule_text
 from StaticLayer import StaticLayer
@@ -113,6 +114,12 @@ class EditableLayer(StateContainer):
         self.update(updator)
         return 0
 
+    def import_atoms_bonds(self, atoms, bonds):
+        self.deselect_all()
+        self.__patch_to_atoms(atoms)
+        self.__patch_to_bonds(bonds)
+        self.select(atoms.keys())
+
     def add_atoms(self, atoms):
         # to_add = {uuid(): atom for atom in atoms}
         to_add = py_.map(atoms, lambda atom: (uuid.uuid4(), atom))
@@ -175,6 +182,21 @@ class EditableLayer(StateContainer):
         rotated = {atom_id: atom for (atom_id, atom) in zip(atom_ids, rotated_atoms)}
         self.__patch_to_atoms(rotated)
         return 0
+    
+    def add_polymer(self, polymer, center_id, entry_id):
+        center = self.atoms[center_id]
+        entry = self.atoms[entry_id]
+        bond = self.bonds[UUIDPair((center_id, entry_id))]
+        direction = center.position - entry.position
+        atoms, bonds, center_idx, entry_idx = polymer.output(direction)
+        self.import_atoms_bonds(atoms, bonds)
+        new_center = self.atoms[center_idx]
+        to_move = center.position - new_center.position
+        self.translation_selected(to_move)
+        self.deselect_all()
+        self.select([center_id, entry_idx])
+        self.remove_selected()
+        self.set_bond(center_idx, entry_id, bond)
 
     def __repr__(self):
         return molecule_text(self)
@@ -196,12 +218,17 @@ class EditableLayer(StateContainer):
 
 
 class Polymer(StaticLayer):
-    def __init__(self, atoms, bonds, entry_idx, center_idx) -> None:
+    @staticmethod
+    def build_from(layer, entry_idx, center_idx):
+        return Polymer(layer.atoms, layer.bonds, entry_idx, center_idx)
+
+    def __init__(self, atoms, bonds, entry_idx, center_idx, eps = EPS) -> None:
         super().__init__(atoms, bonds)
         self._vector = self.atoms[center_idx].position - self.atoms[entry_idx].position
         self._vector = self._vector / np.linalg.norm(self._vector)
         self._entry_idx = entry_idx
         self._center_idx = center_idx
+        self.eps = eps
 
     def output(self, direction):
         updated_atom_ids = {
@@ -220,17 +247,20 @@ class Polymer(StaticLayer):
             updated_bond_ids[origin_uuid_pair]: self.bonds[origin_uuid_pair] for origin_uuid_pair in self.bond_ids
         }
 
-        updated_center_idx = self._center_idx
+        updated_center_idx = updated_atom_ids[self._center_idx]
+        updated_entry_idx = updated_atom_ids[self._entry_idx]
 
         direction = np.array(direction) / np.linalg.norm(direction)
         axis = np.cross(self._vector, direction)
-        angle = np.dot(self._vector, direction)
+        if(np.linalg.norm(axis) == 0.):
+            axis = np.array([1., 0., 0.], dtype="float64")
+        angle = np.arccos(np.dot(self._vector, direction)) / (2*np.pi) * 360
 
         updated_static = StaticLayer(updated_atoms_table, updated_bonds_table)
         editable_layer = EditableLayer(updated_static)
         editable_layer.select_all()
         editable_layer.rotation_selected(axis, editable_layer.atoms[updated_center_idx].position, angle)
-        return editable_layer.atoms, editable_layer.bonds
+        return editable_layer.atoms, editable_layer.bonds, updated_center_idx, updated_entry_idx
 
 if __name__ == "__main__":
     from libs.Atom import Atom
