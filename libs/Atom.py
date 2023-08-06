@@ -3,9 +3,10 @@ from pydash import py_
 import uuid
 
 class Atom:
-    def __init__(self, element, position) -> None:
+    def __init__(self, element, position, class_name = None) -> None:
         self.__element = element
         self.__position = np.array(position, dtype="float64")
+        self.class_name = class_name
 
     @property
     def element(self):

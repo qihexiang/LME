@@ -7,10 +7,27 @@ from libs.UUIDPair import UUIDPair
 from libs.atoms_bonds_loader import atoms_bonds_loader
 from libs.constants import EPS
 from libs.matrix import rotate_matrix
-from libs.molecule_text import molecule_text
+from libs.molecule_text import atoms_bonds_from_mol2, mol2_to_atom, mol2_to_bond, molecule_text
 from StaticLayer import StaticLayer
 
 class EditableLayer(StateContainer):
+    @staticmethod
+    def from_mol2(text):
+        editable = EditableLayer()
+        atoms_lines, bonds_lines = atoms_bonds_from_mol2(text)
+        atoms = py_.map(atoms_lines, mol2_to_atom)
+        atoms_ids = py_.map(atoms, lambda atom: atom[0])
+        atom_uuid_list = editable.add_atoms(py_.map(atoms, lambda atom: atom[1]))
+        atom_uuids = {
+            atom_id: atom_uuid for (atom_id, atom_uuid) in zip(atoms_ids, atom_uuid_list)
+        }
+        bonds = py_.map(bonds_lines, mol2_to_bond)
+        for (a, b, order) in bonds:
+            uuid_a, uuid_b = atom_uuids[a], atom_uuids[b]
+            editable.set_bond(uuid_a, uuid_b, order)
+
+        return editable
+        
     def __init__(self, base=StaticLayer(), load=None) -> None:
         if load is not None:
             if load["type"] != "editable":

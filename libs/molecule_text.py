@@ -1,4 +1,7 @@
+
 from pydash import py_
+
+from libs.Atom import Atom
 
 def molecule_text(target) -> str:
     output = ""
@@ -22,3 +25,28 @@ def molecule_text(target) -> str:
             output += f"{a_idx + 1} {b_idx + 1} {bonds[bond_id]}\n"
 
     return output
+
+def mol2_get_section(lines, section_name):
+    section_start = py_.find_index(lines, lambda line: line == f"@<TRIPOS>{section_name}")
+    section_offset = py_.find_index(lines[section_start + 1:], lambda line: line.startswith("@<TRIPOS>")) 
+    if section_offset == -1:
+        return lines[section_start + 1:]
+    return lines[section_start + 1:section_start + 1 + section_offset]
+
+def mol2_to_atom(line):
+    [atom_id, atom_name, x, y, z, element] = py_.filter(line.split(" "), lambda item: item != "")[0:6]
+    atom = Atom(element, [float(x), float(y), float(z)], atom_name)
+    return int(atom_id), atom
+
+def mol2_to_bond(line):
+    [a, b, order] = py_.filter(line.split(" "), lambda item: item != "")[1:4]
+    return int(a), int(b), float(order)
+
+def atoms_bonds_from_mol2(text):
+    lineEnd = "\r\n" if "\r" in text else "\n"
+    lines = text.split(lineEnd)
+    
+    atoms_lines = py_.filter(mol2_get_section(lines, "ATOM"), lambda line: line != "")
+    bonds_lines = py_.filter(mol2_get_section(lines, "BOND"), lambda line: line != "")
+
+    return atoms_lines, bonds_lines    
