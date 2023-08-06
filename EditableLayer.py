@@ -270,8 +270,11 @@ class Polymer(StaticLayer):
         direction = np.array(direction) / np.linalg.norm(direction)
         axis = np.cross(self._vector, direction)
         if(np.linalg.norm(axis) == 0.):
-            [x, y, _] = direction
-            axis = np.array([-y, x, 0.], dtype="float64")
+            [x, y, z] = direction
+            if x == 0 and y == 0:
+                axis = np.array([1, 1, 0], dtype="float64")
+            else:
+                axis = np.array([y, -x, 0], dtype="float64")
         angle = np.arccos(np.dot(self._vector, direction)) / (2*np.pi) * 360
         updated_static = StaticLayer(updated_atoms_table, updated_bonds_table)
         editable_layer = EditableLayer(updated_static)
