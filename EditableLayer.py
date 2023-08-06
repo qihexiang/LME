@@ -126,7 +126,7 @@ class EditableLayer(StateContainer):
     def select_all(self):
         def updator(state):
             a, b, s = state
-            return a, b, set(a.keys())
+            return a, b, set(self.atom_ids)
 
         self.update(updator)
         return 0
@@ -270,9 +270,9 @@ class Polymer(StaticLayer):
         direction = np.array(direction) / np.linalg.norm(direction)
         axis = np.cross(self._vector, direction)
         if(np.linalg.norm(axis) == 0.):
-            axis = np.array([1., 0., 0.], dtype="float64")
+            [x, y, _] = direction
+            axis = np.array([-y, x, 0.], dtype="float64")
         angle = np.arccos(np.dot(self._vector, direction)) / (2*np.pi) * 360
-
         updated_static = StaticLayer(updated_atoms_table, updated_bonds_table)
         editable_layer = EditableLayer(updated_static)
         editable_layer.select_all()
