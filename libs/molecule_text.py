@@ -35,7 +35,7 @@ def mol2_get_section(lines, section_name):
 
 def mol2_to_atom(line):
     [atom_id, atom_name, x, y, z, element] = py_.filter(line.split(" "), lambda item: item != "")[0:6]
-    atom = Atom(element, [float(x), float(y), float(z)], atom_name)
+    atom = Atom(element.split(".")[0], [float(x), float(y), float(z)], atom_name)
     return int(atom_id), atom
 
 def mol2_to_bond(line):
@@ -50,3 +50,28 @@ def atoms_bonds_from_mol2(text):
     bonds_lines = py_.filter(mol2_get_section(lines, "BOND"), lambda line: line != "")
 
     return atoms_lines, bonds_lines    
+
+def atoms_bonds_to_mol2(atoms, bonds, name = "unknown", mol_type = "SMALL", charge_type = "GASTEIGER"):
+    content = "@<TRIPOS>MOLECULE\n"
+    content += f"{name}\n"
+    content += f"{len(atoms)} {len(bonds)}\n"
+    
+    content += "\n@<TRIPOS>ATOM\n"
+    atom_ids = atoms.keys()
+    for i, atom_id in enumerate(atom_ids):
+        atom = atoms[atom_id]
+        [x, y, z] = atom.position
+        content += f"{i + 1} {atom.element} {x} {y} {z} {atom.element}\n"
+    
+    atoms_id_uuid = {
+        atom_id: i + 1 for i, atom_id in enumerate(atom_ids)
+    }
+
+    content += "\n@<TRIPOS>BOND\n"
+    for i, bond in enumerate(bonds.keys()):
+        a, b = atoms_id_uuid[bond.a], atoms_id_uuid[bond.b]
+        content += f"{i + 1} {a} {b} {bonds[bond]}\n"
+
+    content += "\n"
+
+    return content
