@@ -8,9 +8,15 @@ Plan to implement following functions:
   - [x] functions
   - [x] export
   - [x] load
+  - [x] convert
 - [x] Readonly base layer
   - [x] export
   - [x] load
+  - [x] extractt
+  - [x] convert
+- [x] Polymer
+  - [x] create
+  - [x] add to editable layer
 - [ ] Helper layers
   - [x] Symmetry layers
     - [x] Inverse layer
