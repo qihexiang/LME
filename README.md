@@ -34,3 +34,7 @@ Plan to implement following functions:
   - [ ] Batch layers
 - [ ] Multi-format read/write support
   - [x] mol2(Partial)
+
+## RadiiTable
+
+`libs.RadiiTable` uses file `assets/Radii.csv`, comes from <https://pubs.rsc.org/en/content/articlelanding/2008/DT/b801115j>
