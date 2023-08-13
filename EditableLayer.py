@@ -1,3 +1,4 @@
+from copy import deepcopy
 import uuid
 import numpy as np
 from pydash import py_
@@ -9,6 +10,23 @@ from libs.constants import EPS
 from libs.matrix import rotate_matrix
 from libs.molecule_text import atoms_bonds_from_mol2, mol2_to_atom, mol2_to_bond, molecule_text
 from StaticLayer import StaticLayer
+import re
+
+class DiffLayer:
+    def __init__(self, atoms, bonds) -> None:
+        self.__atoms = deepcopy(atoms)
+        self.__bonds = deepcopy(bonds)
+
+    def __call__(self, atoms, bonds):
+        return atoms | self.__atoms, bonds | self.__bonds
+
+    @property
+    def export(self):
+        return {
+            "type": "diff",
+            "atoms": self.__atoms,
+            "bonds": self.__bonds
+        }
 
 class EditableLayer(StateContainer):
     @staticmethod
@@ -76,6 +94,12 @@ class EditableLayer(StateContainer):
     @property
     def bond_ids(self):
         return set(self.bonds.keys())
+
+    def find_with_classname(self, class_name):
+        return py_.filter(self.atom_ids, lambda atom_id: class_name in self.atoms[atom_id].class_name.split(" "))
+
+    def detach_diff_layer(self):
+        return DiffLayer(self.state[0], self.state[1])
 
     def __patch_to_atoms(self, patch):
         def updator(state):
@@ -200,12 +224,13 @@ class EditableLayer(StateContainer):
         self.__patch_to_atoms(rotated)
         return 0
     
-    def add_polymer(self, polymer, center_id, entry_id):
+    def add_substitute(self, substitute, center_id, entry_id):
         center = self.atoms[center_id]
         entry = self.atoms[entry_id]
         bond = self.bonds[UUIDPair((center_id, entry_id))]
         direction = center.position - entry.position
-        atoms, bonds, center_idx, entry_idx = polymer.output(direction)
+        direction = direction / np.linalg.norm(direction)
+        atoms, bonds, center_idx, entry_idx = substitute.output(direction)
         self.import_atoms_bonds(atoms, bonds)
         new_center = self.atoms[center_idx]
         to_move = center.position - new_center.position
@@ -234,10 +259,20 @@ class EditableLayer(StateContainer):
         }
 
 
-class Polymer(StaticLayer):
+substitute_re = re.compile("Substitute\(entry=(?P<entry>.*),center=(?P<center>.*)\)")
+class Substitute(StaticLayer):
+    @staticmethod
+    def from_mol2(text: str):
+        layer = EditableLayer.from_mol2(text)
+        entry_name, center_name = substitute_re.search(text).groups()
+        entry_idx = layer.find_with_classname(entry_name)[0]
+        center_idx = layer.find_with_classname(center_name)[0]
+        return Substitute.build_from(layer, entry_idx, center_idx)
+
+
     @staticmethod
     def build_from(layer, entry_idx, center_idx):
-        return Polymer(layer.atoms, layer.bonds, entry_idx, center_idx)
+        return Substitute(layer.atoms, layer.bonds, entry_idx, center_idx)
 
     def __init__(self, atoms, bonds, entry_idx, center_idx, eps = EPS) -> None:
         super().__init__(atoms, bonds)
@@ -268,7 +303,8 @@ class Polymer(StaticLayer):
         updated_entry_idx = updated_atom_ids[self._entry_idx]
 
         direction = np.array(direction) / np.linalg.norm(direction)
-        axis = np.cross(self._vector, direction)
+        axis = np.cross(direction, self._vector)
+        axis = axis / np.linalg.norm(axis)
         if(np.linalg.norm(axis) == 0.):
             [x, y, z] = direction
             if x == 0 and y == 0:
@@ -276,10 +312,10 @@ class Polymer(StaticLayer):
             else:
                 axis = np.array([y, -x, 0], dtype="float64")
         angle = np.arccos(np.dot(self._vector, direction)) / (2*np.pi) * 360
-        updated_static = StaticLayer(updated_atoms_table, updated_bonds_table)
-        editable_layer = EditableLayer(updated_static)
+        editable_layer = EditableLayer()
+        editable_layer.import_atoms_bonds(updated_atoms_table, updated_bonds_table)
         editable_layer.select_all()
-        editable_layer.rotation_selected(axis, editable_layer.atoms[updated_center_idx].position, angle)
+        editable_layer.rotation_selected(axis, editable_layer.atoms[updated_entry_idx].position, angle)
         return editable_layer.atoms, editable_layer.bonds, updated_center_idx, updated_entry_idx
 
 if __name__ == "__main__":
