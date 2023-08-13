@@ -6,7 +6,7 @@ from pydash import py_
 def atoms_bonds_loader(atoms_dict, bonds_dict):
     atoms = {
         UUID(atom_id): Atom(
-            atoms_dict[atom_id]["element"], atoms_dict[atom_id]["position"]
+            atoms_dict[atom_id]["element"], atoms_dict[atom_id]["position"], atoms_dict["class_name"]
         )
         if atoms_dict[atom_id] is not None
         else None
