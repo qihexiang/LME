@@ -14,7 +14,7 @@ Plan to implement following functions:
   - [x] load
   - [x] extractt
   - [x] convert
-- [x] Polymer
+- [x] Substitute
   - [x] create
   - [x] add to editable layer
 - [ ] Helper layers
