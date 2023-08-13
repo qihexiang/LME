@@ -55,6 +55,7 @@ def atoms_bonds_to_mol2(atoms, bonds, name = "unknown", mol_type = "SMALL", char
     content = "@<TRIPOS>MOLECULE\n"
     content += f"{name}\n"
     content += f"{len(atoms)} {len(bonds)}\n"
+    content += f"{mol_type}\n{charge_type}\n"
     
     content += "\n@<TRIPOS>ATOM\n"
     atom_ids = atoms.keys()
