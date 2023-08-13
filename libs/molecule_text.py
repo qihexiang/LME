@@ -40,14 +40,14 @@ def mol2_to_atom(line):
 
 def mol2_to_bond(line):
     [a, b, order] = py_.filter(line.split(" "), lambda item: item != "")[1:4]
-    return int(a), int(b), float(order)
+    return int(a), int(b), order
 
 def atoms_bonds_from_mol2(text):
     lineEnd = "\r\n" if "\r" in text else "\n"
     lines = text.split(lineEnd)
     
-    atoms_lines = py_.filter(mol2_get_section(lines, "ATOM"), lambda line: line != "")
-    bonds_lines = py_.filter(mol2_get_section(lines, "BOND"), lambda line: line != "")
+    atoms_lines = py_.filter(mol2_get_section(lines, "ATOM"), lambda line: line != "" and not line.startswith("#"))
+    bonds_lines = py_.filter(mol2_get_section(lines, "BOND"), lambda line: line != "" and not line.startswith("#"))
 
     return atoms_lines, bonds_lines    
 
@@ -61,7 +61,7 @@ def atoms_bonds_to_mol2(atoms, bonds, name = "unknown", mol_type = "SMALL", char
     for i, atom_id in enumerate(atom_ids):
         atom = atoms[atom_id]
         [x, y, z] = atom.position
-        content += f"{i + 1} {atom.element} {x} {y} {z} {atom.element}\n"
+        content += f"{i + 1} {atom.element}{i+1} {x} {y} {z} {atom.element}\n"
     
     atoms_id_uuid = {
         atom_id: i + 1 for i, atom_id in enumerate(atom_ids)
