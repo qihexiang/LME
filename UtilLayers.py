@@ -3,7 +3,7 @@ import numpy as np
 from copy import deepcopy
 from libs.Atom import AtomWithId
 from libs.UUIDPair import UUIDPair
-
+from libs.RadiiTable import default_radius_table
 from libs.constants import EPS
 
 
@@ -70,7 +70,7 @@ class DedupLayer:
 
 
 class AutoBondLayer:
-    def __init__(self, radius_table) -> None:
+    def __init__(self, radius_table = default_radius_table) -> None:
         elements = radius_table.keys()
         self.elements_table = py_.flatten(
             py_.map(elements, lambda e1: py_.map(elements, lambda e2: (e1, e2)))
@@ -81,10 +81,31 @@ class AutoBondLayer:
         )
         self.max_bond_length = np.array(self.bond_length_matrix, dtype="float64").max()
 
-    def max_bond_length(self, target):
-        idx = py_.find_index(self.elements_table, target)
+    def elements_max_bond_length(self, target):
+        idx = py_.find_index(self.elements_table, lambda item: item == target)
         if idx == -1:
             return None
         return self.bond_length_matrix[idx]
 
-    # def __call__(self, atoms, bonds) -> Any:
+    def __call__(self, atoms, bonds):
+        atom_with_ids = AtomWithId.from_atoms(atoms)
+        available = py_.map(atom_with_ids, lambda atom: (atom, py_.chain(atom_with_ids).filter(lambda candidate: candidate != atom).map(lambda candidate: (candidate, np.linalg.norm(candidate.position - atom.position))).filter(lambda atom_distance: atom_distance[1] <= self.max_bond_length).value()))
+        bonds_to_add = {}
+        for (atom, candidates) in available:
+            for (candidate, distance) in candidates:
+                uuid_pair =UUIDPair((atom.get_id(), candidate.get_id()))
+                elements = (atom.element, candidate.element)
+                max_length = self.elements_max_bond_length(elements)
+                if(distance <= max_length):
+                    bonds_to_add[uuid_pair] = 1.0
+        
+        return atoms, bonds_to_add | bonds
+    
+    @property
+    def export(self):
+        return {
+            "type": "autobond",
+            "elements": self.elements_table,
+            "max_bond_length": self.bond_length_matrix
+        }
+    
