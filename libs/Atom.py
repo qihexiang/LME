@@ -35,7 +35,7 @@ class Atom:
 
     @property
     def export(self):
-        return {"element": self.element, "position": list(self.position)}
+        return {"element": self.element, "position": list(self.position), "class_name": self.class_name}
 
 
 class AtomWithId(Atom):
