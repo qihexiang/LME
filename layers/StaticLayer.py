@@ -2,8 +2,8 @@ from copy import deepcopy
 from libs.atoms_bonds_loader import atoms_bonds_loader
 from libs.constants import PRODUCTION
 from libs.molecule_text import molecule_text
-from SymmetryLayers import SymmetryLayer
-from UtilLayers import DedupLayer
+from layers.SymmetryLayers import SymmetryLayer
+from layers.UtilLayers import DedupLayer
 from pydash import py_
 
 
