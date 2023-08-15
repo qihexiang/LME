@@ -1,22 +1,25 @@
 import yaml
 from fs.osfs import OSFS
-from os.path import isabs, join
+from posixpath import isabs, join, relpath
+# from os.path import isabs, join, relpath
 from layers.EditableLayer import EditableLayer
 from pydash import py_
+from workflow.runners import default_runners
 
 class Workflow:
-    def __init__(self, config, runners) -> None:
+    def __init__(self, config, runners = default_runners) -> None:
         version = config["version"]
-        rootDirectory = config["rootDirectory"]
-        subsitutes = config["substitutes"]
-        subsitutes = [item if isabs(item) else join(self.rootDirectory, item) for item in subsitutes]
+        rootDirectory = join(*config["rootDirectory"])
+        subsitutes = py_.map(config["substitutes"], lambda paths: join(*paths))
+        subsitutes = [relpath(item, rootDirectory) if isabs(item) else join(rootDirectory, item) for item in subsitutes]
         self.metas = {
             "version": version, "rootDirectory": rootDirectory,
-            "subsitutes": subsitutes
+            "substitutes": subsitutes
         }
-        self.template = config["template"]
-        self.template = self.template if isabs(self.template) else join(self.rootDirectory, self.template)
-        self.template = EditableLayer.from_mol2(OSFS("/").readtext(self.template)).to_static_layer()
+        template_path = join(*config["template"])
+        template_path = relpath(template_path, rootDirectory) if isabs(template_path) else template_path
+        self.rootDirectory = OSFS(rootDirectory)
+        self.template = EditableLayer.from_mol2(self.rootDirectory.readtext(template_path)).to_static_layer()
         self.generated = [(self.template, {})]
         self.jobs = config["jobs"]
         self.current_step = 0
@@ -24,7 +27,7 @@ class Workflow:
     
     def run_step(self):
         if(self.current_step >= len(self.jobs)):
-            raise None
+            return False
         current_task = self.jobs[self.current_step]
         self.current_step += 1
         (runner_builder, need_flat) = self.runners[current_task["use"]]
@@ -34,6 +37,7 @@ class Workflow:
             if need_flat:
                 products = runner(model, names)
                 products = [(product, names | {current_task["name"]: tag}) for product, tag in products]
+                return products
             else:
                 model, tag = runner(model, names)
                 return (model, names | {current_task["name"]: tag})
@@ -41,14 +45,9 @@ class Workflow:
         if need_flat:
             processed = py_.flatten(processed)
         self.generated = processed
-        return None
+        return True
 
     def run(self):
         while(True):
-            try:
-                self.run_step()
-            except None:
+            if not self.run_step():
                 break
-            except Exception as err:
-                print(err)
-                exit(1)

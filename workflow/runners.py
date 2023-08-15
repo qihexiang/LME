@@ -24,7 +24,7 @@ class AddSubsititute:
                 .flatten()
                 .filter(lambda filename: filename.endswith(".mol2"))
                 .uniq()
-                .map(lambda filename: filename[0:-4])
+                .map(lambda filename: filename[0:-5])
                 .value()
         )
     
@@ -33,8 +33,7 @@ class AddSubsititute:
         for directory in self.substitutes_lib:
             try:
                 mol2 = directory.readtext(target_filename)
-                Substitute.from_mol2(mol2)
-                return Substitute
+                return Substitute.from_mol2(mol2)        
             except Exception:
                 pass
         raise FileNotFoundError(f"No {target_filename} found in given directories")
@@ -42,8 +41,8 @@ class AddSubsititute:
     def __call__(self, item, names) -> Any:
         def generate_for_subsitite(sub_entry):
             editable = item.to_editable_layer()
-            entry_idx = editable.find_with_classname(self.entry)
-            center_idxes = [editable.find_with_classname(center_name) for center_name in self.centers]
+            entry_idx = editable.find_with_classname(self.entry)[0]
+            center_idxes = [editable.find_with_classname(center_name)[0] for center_name in self.centers]
         
             if type(sub_entry) == str:
                 tag_name = sub_entry
