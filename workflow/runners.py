@@ -61,13 +61,20 @@ class Output:
     def __init__(self, options, metas) -> None:
         self.rootDirectory = OSFS(metas["rootDirectory"])
         self.filenamePattern = options["pattern"]
+
+    def __write__(self, target, content):
+        target_dir = dirname(target)
+        if not self.rootDirectory.exists(target_dir):
+            self.rootDirectory.makedirs(target_dir)
+        return self.rootDirectory.writetext(target, content)
+
     
     def __call__(self, item, names) -> Any:
         mol2 = atoms_bonds_to_mol2(item.atoms, item.bonds)
         filename = self.filenamePattern
         for stage_name in names:
             filename = filename.replace(f"{{{stage_name}}}", names[stage_name])
-        self.rootDirectory.writetext(filename, mol2)
+        self.__write__(filename, mol2)
         return item, "output"
 
 default_runners = {
