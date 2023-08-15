@@ -258,6 +258,9 @@ class EditableLayer(StateContainer):
             "base": self.base.export,
         }
 
+    def to_static_layer(self):
+        from layers.StaticLayer import StaticLayer
+        return StaticLayer(self.atoms, self.bonds)
 
 substitute_re = re.compile("Substitute\(entry=(?P<entry>.*),center=(?P<center>.*)\)")
 class Substitute(StaticLayer):
