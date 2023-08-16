@@ -7,8 +7,7 @@ from libs.molecule_text import atoms_bonds_to_mol2
 
 class AddSubsititute:
     def __init__(self, options, metas) -> None:
-        self.entry = options["entry"]
-        self.centers = options["centers"]
+        self.replace = options["replace"]
         self.substitutes_lib = metas["substitutes"] + [join(dirname(__file__), "..", "Substitutes")]
         self.substitutes_lib = [OSFS(directory) for directory in self.substitutes_lib]
         self.substitutes = options["substitutes"]
@@ -41,9 +40,9 @@ class AddSubsititute:
     def __call__(self, item, names) -> Any:
         def generate_for_subsitite(sub_entry):
             editable = item.to_editable_layer()
-            entry_idx = editable.find_with_classname(self.entry)[0]
-            center_idxes = [editable.find_with_classname(center_name)[0] for center_name in self.centers]
-        
+            # entry_idx = editable.find_with_classname(self.entry)[0]
+            # center_idxes = [editable.find_with_classname(center_name)[0] for center_name in self.centers]
+            indexes = py_.map(self.replace, lambda names: py_.map(names, lambda name: editable.find_with_classname(name)[0]))
             if type(sub_entry) == str:
                 tag_name = sub_entry
                 sub_name = sub_entry
@@ -51,7 +50,7 @@ class AddSubsititute:
                 tag_name = sub_entry["name"]
                 sub_name = sub_entry["substitute"]
             substitute = self.load_substitute(sub_name)
-            for center_idx in center_idxes:
+            for [entry_idx,center_idx] in indexes:
                 editable.add_substitute(substitute, center_idx, entry_idx)
             return editable.to_static_layer(), tag_name
         return [generate_for_subsitite(sub_entry) for sub_entry in self.substitutes]
