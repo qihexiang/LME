@@ -2,13 +2,14 @@ from typing import Any
 from pydash import py_
 from fs.osfs import OSFS
 from os.path import join, dirname
-from layers.EditableLayer import Substitute
-from libs.molecule_text import atoms_bonds_to_mol2
+from layers.EditableLayer import Substitute, EditableLayer
+from libs.molecule_text import atoms_bonds_to_mol2, atoms_bonds_from_mol2
+from posixpath import join, isabs, relpath
 
 class AddSubsititute:
     def __init__(self, options, metas) -> None:
         self.replace = options["replace"]
-        self.substitutes_lib = metas["substitutes"] + [join(dirname(__file__), "..", "Substitutes")]
+        self.substitutes_lib = py_.map(metas["substitutes"], lambda libpath: join(metas["rootDirectory"], libpath)) + [join(dirname(__file__), "..", "Substitutes")]
         self.substitutes_lib = [OSFS(directory) for directory in self.substitutes_lib]
         self.substitutes = options["substitutes"]
         if self.substitutes == "all":
@@ -68,6 +69,26 @@ class BondModify:
         
         return editable.to_static_layer(), ""
 
+class ImportStructure:
+    def __call__(self, options, metas) -> Any:
+        rootDirectory = metas["rootDirectory"]
+        targetPath = join(*options["filepath"])
+        targetPath = relpath(targetPath, rootDirectory) if isabs(rootDirectory) else targetPath
+        self.atoms, self.bonds = atoms_bonds_from_mol2(OSFS(rootDirectory).readtext(targetPath))
+        self.rotation = options.get("rotation")
+        self.translation = options.get("translation")
+
+    def __call__(self, target, names) -> Any:
+        editable = target.to_editable_layer()
+        editable.import_atoms_bonds(self.atoms, self.bonds)
+        if self.rotation is not None and self.rotation is not False:
+            editable.rotation_selected(self.rotation["axis"], self.rotation["center"], self.rotation["angle"])
+
+        if self.translation is not None and self.translation is not False:
+            editable.translation_selected(self.translation)
+
+        return editable.to_static_layer(), ""
+
 class Output:
     def __init__(self, options, metas) -> None:
         self.rootDirectory = OSFS(metas["rootDirectory"])
@@ -91,5 +112,6 @@ class Output:
 default_runners = {
     "add_substitute": (AddSubsititute, True), 
     "modify_bond": (BondModify, False),
+    "import": (ImportStructure, False),
     "output": (Output, False)
 }

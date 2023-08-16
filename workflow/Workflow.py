@@ -11,7 +11,7 @@ class Workflow:
         version = config["version"]
         rootDirectory = join(*config["rootDirectory"])
         subsitutes = py_.map(config["substitutes"], lambda paths: join(*paths))
-        subsitutes = [relpath(item, rootDirectory) if isabs(item) else join(rootDirectory, item) for item in subsitutes]
+        subsitutes = [relpath(item) if isabs(item) else item for item in subsitutes]
         self.metas = {
             "version": version, "rootDirectory": rootDirectory,
             "substitutes": subsitutes
