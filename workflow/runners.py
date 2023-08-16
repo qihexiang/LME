@@ -55,6 +55,19 @@ class AddSubsititute:
             return editable.to_static_layer(), tag_name
         return [generate_for_subsitite(sub_entry) for sub_entry in self.substitutes]
 
+class BondModify:
+    def __init__(self, options, metas) -> None:
+        self.tasks = options
+
+    def __call__(self, target, names) -> Any:
+        editable = target.to_editable_layer()
+        connects = py_.map(self.tasks, lambda names: py_.map(names, lambda target: [editable.find_with_classname(target[0])[0], editable.find_with_classname(target[1])[0], target[2]]))
+        
+        for [a, b, bond] in connects:
+            editable.set_bond(a, b, bond)
+        
+        return editable.to_static_layer(), ""
+
 class Output:
     def __init__(self, options, metas) -> None:
         self.rootDirectory = OSFS(metas["rootDirectory"])
@@ -77,5 +90,6 @@ class Output:
 
 default_runners = {
     "add_substitute": (AddSubsititute, True), 
+    "modify_bond": (BondModify, False),
     "output": (Output, False)
 }
