@@ -1,15 +1,14 @@
 from typing import Any
 from pydash import py_
 from fs.osfs import OSFS
-from os.path import join, dirname
 from layers.EditableLayer import Substitute, EditableLayer
-from libs.molecule_text import atoms_bonds_to_mol2, atoms_bonds_from_mol2
-from posixpath import join, isabs, relpath
+from libs.molecule_text import atoms_bonds_to_mol2
+from posixpath import join, isabs, relpath, dirname
 
 class AddSubsititute:
     def __init__(self, options, metas) -> None:
         self.replace = options["replace"]
-        self.substitutes_lib = py_.map(metas["substitutes"], lambda libpath: join(metas["rootDirectory"], libpath)) + [join(dirname(__file__), "..", "Substitutes")]
+        self.substitutes_lib = py_.map(metas["substitutes"], lambda libpath: join(metas["rootDirectory"], libpath)) + [join(dirname(__file__.replace("\\", "/")), "..", "Substitutes")]
         self.substitutes_lib = [OSFS(directory) for directory in self.substitutes_lib]
         self.substitutes = options["substitutes"]
         if self.substitutes == "all":
@@ -54,13 +53,28 @@ class AddSubsititute:
             return editable.to_static_layer(), tag_name
         return [generate_for_subsitite(sub_entry) for sub_entry in self.substitutes]
 
+class AtomModify:
+    def __init__(self, options, metas) -> None:
+        self.tasks = options
+
+    def __call__(self, target, names) -> Any:
+        editable = EditableLayer(target)
+        for task in self.tasks:
+            editable.deselect_all()
+            editable.select(editable.find_with_classname(task["select"]))
+            if "element" in task:
+                editable.set_element_selected(task["element"])
+            if "translation" in task:
+                editable.translation_selected(task["translation"])
+        return editable.to_static_layer(), ""
+
 class BondModify:
     def __init__(self, options, metas) -> None:
         self.tasks = options
 
     def __call__(self, target, names) -> Any:
         editable = EditableLayer(target)
-        connects = py_.map(self.tasks, lambda names: py_.map(names, lambda target: [editable.find_with_classname(target[0])[0], editable.find_with_classname(target[1])[0], target[2]]))
+        connects = [[editable.find_with_classname(n1)[0], editable.find_with_classname(n2)[0], bond_type] for [n1, n2, bond_type] in self.tasks]
         
         for [a, b, bond] in connects:
             editable.set_bond(a, b, bond)
@@ -68,11 +82,13 @@ class BondModify:
         return editable.to_static_layer(), ""
 
 class ImportStructure:
-    def __call__(self, options, metas) -> Any:
+    def __init__(self, options, metas) -> Any:
         rootDirectory = metas["rootDirectory"]
         targetPath = join(*options["filepath"])
         targetPath = relpath(targetPath, rootDirectory) if isabs(rootDirectory) else targetPath
-        self.atoms, self.bonds = atoms_bonds_from_mol2(OSFS(rootDirectory).readtext(targetPath))
+        editable = EditableLayer.from_mol2(OSFS(rootDirectory).readtext(targetPath))
+        self.atoms = editable.atoms
+        self.bonds = editable.bonds
         self.rotation = options.get("rotation")
         self.translation = options.get("translation")
 
@@ -90,7 +106,7 @@ class ImportStructure:
 class Output:
     def __init__(self, options, metas) -> None:
         self.rootDirectory = OSFS(metas["rootDirectory"])
-        self.filenamePattern = options["pattern"]
+        self.filenamePattern = join(*options["pattern"])
 
     def __write__(self, target, content):
         target_dir = dirname(target)
@@ -108,7 +124,8 @@ class Output:
         return item, "output"
 
 default_runners = {
-    "add_substitute": (AddSubsititute, True), 
+    "add_substitute": (AddSubsititute, True),
+    "modify_atom": (AtomModify, False),
     "modify_bond": (BondModify, False),
     "import": (ImportStructure, False),
     "output": (Output, False)
