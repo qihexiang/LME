@@ -30,15 +30,8 @@ class StaticLayer:
                 atoms, bonds = transformer(atoms, bonds)
         else:
             self.__contains = None
-        atom_ids = py_.filter(atoms.keys(), lambda atom_id: atoms[atom_id] is not None)
-        self.__atoms = {atom_id: atoms[atom_id] for atom_id in atom_ids}
-        bond_ids = py_.filter(
-            bonds.keys(),
-            lambda bond_id: bonds[bond_id] is not None
-            and bond_id.a in atom_ids
-            and bond_id.b in atom_ids,
-        )
-        self.__bonds = {bond_id: bonds[bond_id] for bond_id in bond_ids}
+        self.__atoms = atoms
+        self.__bonds = bonds
 
     @property
     def contains(self):
