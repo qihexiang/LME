@@ -1,7 +1,7 @@
 import yaml
 from fs.osfs import OSFS
 from posixpath import isabs, join, relpath
-# from os.path import isabs, join, relpath
+from datetime import datetime
 from layers.EditableLayer import EditableLayer
 from pydash import py_
 from workflow.runners import default_runners
@@ -30,6 +30,8 @@ class Workflow:
             return False
         current_task = self.jobs[self.current_step]
         self.current_step += 1
+        print(f"Enter job {self.current_step}: {current_task['name']}")
+        start_at = datetime.now()
         (runner_builder, need_flat) = self.runners[current_task["use"]]
         runner = runner_builder(current_task["with"], self.metas)
         def full_runner(working_item):
@@ -45,9 +47,13 @@ class Workflow:
         if need_flat:
             processed = py_.flatten(processed)
         self.generated = processed
+        print(f"Exit job {self.current_step}: {current_task['name']}, uses {datetime.now() - start_at}")
         return True
 
     def run(self):
+        start_at = datetime.now()
+        print(f"Task start at {start_at}")
         while(True):
             if not self.run_step():
                 break
+        print(f"All jobs finished. Used {datetime.now() - start_at}")
