@@ -38,11 +38,9 @@ class AddSubsititute:
                 pass
         raise FileNotFoundError(f"No {target_filename} found in given directories")
     
-    def __call__(self, item, names) -> Any:
+    def __call__(self, target, names) -> Any:
         def generate_for_subsitite(sub_entry):
-            editable = item.to_editable_layer()
-            # entry_idx = editable.find_with_classname(self.entry)[0]
-            # center_idxes = [editable.find_with_classname(center_name)[0] for center_name in self.centers]
+            editable = EditableLayer(target)
             indexes = py_.map(self.replace, lambda names: py_.map(names, lambda name: editable.find_with_classname(name)[0]))
             if type(sub_entry) == str:
                 tag_name = sub_entry
@@ -61,7 +59,7 @@ class BondModify:
         self.tasks = options
 
     def __call__(self, target, names) -> Any:
-        editable = target.to_editable_layer()
+        editable = EditableLayer(target)
         connects = py_.map(self.tasks, lambda names: py_.map(names, lambda target: [editable.find_with_classname(target[0])[0], editable.find_with_classname(target[1])[0], target[2]]))
         
         for [a, b, bond] in connects:
@@ -79,7 +77,7 @@ class ImportStructure:
         self.translation = options.get("translation")
 
     def __call__(self, target, names) -> Any:
-        editable = target.to_editable_layer()
+        editable = EditableLayer(target)
         editable.import_atoms_bonds(self.atoms, self.bonds)
         if self.rotation is not None and self.rotation is not False:
             editable.rotation_selected(self.rotation["axis"], self.rotation["center"], self.rotation["angle"])

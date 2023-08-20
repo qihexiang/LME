@@ -102,10 +102,3 @@ class StaticLayer:
         editable = EditableLayer(load=self.contains["editable"])
         transformers = py_.map(self.contains["transformers"], StaticLayer.__extract_transformer)
         return editable, transformers
-
-    def to_editable_layer(self):
-        from layers.EditableLayer import EditableLayer
-        editable = EditableLayer()
-        editable.import_atoms_bonds(self.atoms, self.bonds)
-        editable.deselect_all()
-        return editable
