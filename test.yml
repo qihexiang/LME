@@ -1,0 +1,49 @@
+version: "1"
+substitutes: []
+rootDirectory: ["."]
+template: [example_data, template.mol2]
+
+jobs:
+- name: tune_right
+  use: add_substitute
+  with:
+    replace:
+    - [P11, H35]
+    - [P11, H36]
+    substitutes: all
+- name: tune_left
+  use: add_substitute
+  with:
+    replace: 
+    - [P12, H33]
+    - [P12, H34]
+    substitutes: all
+- name: output_A1
+  use: output
+  with:
+    pattern: [output, workflows, "{tune_right}.{tune_left}", A1.mol2]
+- name: import_H2
+  use: import
+  with:
+    filepath: [H2.mol2]
+    rotation: no
+    translation: no
+- name: output_A2
+  use: output
+  with:
+    pattern: [output, workflows, "{tune_right}.{tune_left}", A2.mol2]
+- name: A2-A3
+  use: modify_atom
+  with:
+  - select: HA
+    translation: [-0.3432,  1.9904, -0.0458]
+  - select: HB
+    translation: [0.1904, -0.2012, -0.3386]
+- name: connect_H_N
+  use: modify_bond
+  with:
+  - [HA, N2, 1]
+- name: output_A3
+  use: output
+  with:
+    pattern: [output, workflows, "{tune_right}.{tune_left}", A3.mol2]
