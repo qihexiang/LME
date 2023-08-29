@@ -11,6 +11,9 @@ jobs:
     - [P11, H35]
     - [P11, H36]
     substitutes: all
+- name: risky_check
+  use: risky
+  with: 
 - name: tune_left
   use: add_substitute
   with:
