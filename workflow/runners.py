@@ -4,6 +4,8 @@ from fs.osfs import OSFS
 from layers.EditableLayer import Substitute, EditableLayer
 from libs.molecule_text import atoms_bonds_to_mol2
 from posixpath import join, isabs, relpath, dirname
+from openbabel import openbabel
+from openbabel import pybel
 
 class AddSubsititute:
     def __init__(self, options, metas) -> None:
@@ -107,6 +109,26 @@ class Output:
     def __init__(self, options, metas) -> None:
         self.rootDirectory = OSFS(metas["rootDirectory"])
         self.filenamePattern = join(*options["pattern"])
+        self.clean = options.get("clean")
+    
+    def __clean__(self, mol2, tags):
+        if self.clean is None:
+            pass
+        rules = self.clean["rules"]
+        for [tag, value] in rules:
+            if(tags.get(tag) == value):
+                print(tags.get(tag))
+                obmol = pybel.readstring("mol2", mol2).OBMol
+                ff = openbabel.OBForceField.FindForceField("UFF")
+                ff.Setup(obmol)
+                print("Init:", ff.Energy())
+                ff.ConjugateGradients(self.clean["steps"])
+                print("Optimed", ff.Energy())
+                ff.GetConformers(obmol)
+                output = pybel.Molecule(obmol)
+                output = output.write("mol2")
+                return output
+        pass
 
     def __write__(self, target, content):
         target_dir = dirname(target)
@@ -117,10 +139,13 @@ class Output:
     
     def __call__(self, item, names) -> Any:
         mol2 = atoms_bonds_to_mol2(item.atoms, item.bonds)
+        cleaned = self.__clean__(mol2, names)
         filename = self.filenamePattern
         for stage_name in names:
             filename = filename.replace(f"{{{stage_name}}}", names[stage_name])
         self.__write__(filename, mol2)
+        if cleaned is not None:
+            self.__write__(f"{filename}.cleaned.mol2", cleaned)
         return item, "output"
 
 default_runners = {

@@ -18,7 +18,8 @@ class ClampRisky:
         re_connected = StaticLayer(contains=(item, [AutoBondLayer()]))
         if len(re_connected.bond_ids) != len(item.bond_ids):
             print(f"risky: tags: {tags}")
-        return item, ""
+            return item, "warning"
+        return item, ""     
 
 workflow = Workflow(workflow_data, runners=default_runners | {"risky": (ClampRisky, False)})
 
