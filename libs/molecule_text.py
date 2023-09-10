@@ -62,8 +62,11 @@ def atoms_bonds_to_mol2(atoms, bonds, name = "unknown", mol_type = "SMALL", char
     for i, atom_id in enumerate(atom_ids):
         atom = atoms[atom_id]
         [x, y, z] = atom.position
-        content += f"{i + 1} {atom.element}{i+1} {x} {y} {z} {atom.element}\n"
-    
+        if atom.class_name == "":
+            content += f"{i + 1} {atom.element}{i+1} {x} {y} {z} {atom.element}\n"
+        else:
+            content += f"{i + 1} {atom.class_name} {x} {y} {z} {atom.element}\n"
+
     atoms_id_uuid = {
         atom_id: i + 1 for i, atom_id in enumerate(atom_ids)
     }

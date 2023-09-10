@@ -6,6 +6,9 @@ from libs.molecule_text import atoms_bonds_to_mol2
 from posixpath import join, isabs, relpath, dirname
 from openbabel import openbabel
 from openbabel import pybel
+import re
+
+atom_section_re = re.compile("@<TRIPOS>ATOM\n((.*\n)*)\n@")
 
 class AddSubsititute:
     def __init__(self, options, metas) -> None:
@@ -105,13 +108,20 @@ class ImportStructure:
 
         return editable.to_static_layer(), ""
 
+def debug_output(a):
+    print(a)
+    return a
+
 class Output:
     def __init__(self, options, metas) -> None:
         self.rootDirectory = OSFS(metas["rootDirectory"])
         self.filenamePattern = join(*options["pattern"])
         self.clean = options.get("clean")
+        self.freeze = self.clean.get("freeze")
+        self.freeze = self.freeze if self.freeze is not None else []
     
     def __clean__(self, mol2, tags):
+        atoms_section = atom_section_re.findall(mol2)
         if self.clean is None:
             pass
         rules = self.clean["rules"]
@@ -119,8 +129,21 @@ class Output:
             if(tags.get(tag) == value):
                 print(tags.get(tag))
                 obmol = pybel.readstring("mol2", mol2).OBMol
+                constraints = openbabel.OBFFConstraints()
+                to_freezes = (py_.chain(atoms_section[0][0].split("\n"))
+                             .map(lambda line: py_.filter(line.split(" "), lambda token: token != ""))
+                             .filter(lambda line: len(line) != 0)
+                            #  .map(debug_output)
+                             .filter(lambda line: line[1] in self.freeze)
+                             .map(lambda line: int(line[0]))
+                             .value()
+                            )
+                for to_freeze in to_freezes:
+                    print(to_freeze)
+                    constraints.AddAtomConstraint(to_freeze)
+
                 ff = openbabel.OBForceField.FindForceField("UFF")
-                ff.Setup(obmol)
+                ff.Setup(obmol, constraints)
                 print("Init:", ff.Energy())
                 ff.ConjugateGradients(self.clean["steps"])
                 print("Optimed", ff.Energy())

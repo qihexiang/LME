@@ -10,14 +10,14 @@ jobs:
     replace:
     - [P11, H35]
     - [P11, H36]
-    substitutes: all
+    substitutes: [Br, Cy]
 - name: tune_left
   use: add_substitute
   with:
     replace: 
     - [P12, H33]
     - [P12, H34]
-    substitutes: all
+    substitutes: [Br, Cy]
 - name: risky_check
   use: risky
   with: 
@@ -26,6 +26,7 @@ jobs:
   with:
     clean:
       steps: 500
+      freeze: [Mn1, N2, HA, HB]
       rules:
         - [risky_check, warning]
     pattern: [output, workflows, "{tune_right}.{tune_left}", A1.mol2]
@@ -40,6 +41,7 @@ jobs:
   with:
     clean:
       steps: 500
+      freeze: [Mn1, N2, HA, HB]
       rules:
         - [risky_check, warning]
     pattern: [output, workflows, "{tune_right}.{tune_left}", A2.mol2]
@@ -60,6 +62,7 @@ jobs:
   with:
     clean:
       steps: 500
+      freeze: [Mn1, N2, HA, HB]
       rules:
         - [risky_check, warning]
     pattern: [output, workflows, "{tune_right}.{tune_left}", A3.mol2]
