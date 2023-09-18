@@ -14,7 +14,7 @@ class Workflow:
         subsitutes = [relpath(item) if isabs(item) else item for item in subsitutes]
         self.metas = {
             "version": version, "rootDirectory": rootDirectory,
-            "substitutes": subsitutes
+            "substitutes": subsitutes, "output_prefix": config["output_prefix"]
         }
         template_path = join(*config["template"])
         template_path = relpath(template_path, rootDirectory) if isabs(template_path) else template_path

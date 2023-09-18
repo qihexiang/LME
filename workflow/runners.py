@@ -115,7 +115,8 @@ def debug_output(a):
 class Output:
     def __init__(self, options, metas) -> None:
         self.rootDirectory = OSFS(metas["rootDirectory"])
-        self.filenamePattern = join(*options["pattern"])
+        self.filenamePattern = join(*(metas["output_prefix"] + options["pattern"]))
+        print(self.filenamePattern)
         self.clean = options.get("clean")
         self.freeze = self.clean.get("freeze")
         self.freeze = self.freeze if self.freeze is not None else []
@@ -125,33 +126,58 @@ class Output:
         if self.clean is None:
             pass
         rules = self.clean["rules"]
-        for [tag, value] in rules:
-            if(tags.get(tag) == value):
-                print(tags.get(tag))
-                obmol = pybel.readstring("mol2", mol2).OBMol
-                constraints = openbabel.OBFFConstraints()
-                to_freezes = (py_.chain(atoms_section[0][0].split("\n"))
-                             .map(lambda line: py_.filter(line.split(" "), lambda token: token != ""))
-                             .filter(lambda line: len(line) != 0)
-                            #  .map(debug_output)
-                             .filter(lambda line: line[1] in self.freeze)
-                             .map(lambda line: int(line[0]))
-                             .value()
-                            )
-                for to_freeze in to_freezes:
-                    print(to_freeze)
-                    constraints.AddAtomConstraint(to_freeze)
+        if rules is None or len(rules) == 0:
+            obmol = pybel.readstring("mol2", mol2).OBMol
+            constraints = openbabel.OBFFConstraints()
+            to_freezes = (py_.chain(atoms_section[0][0].split("\n"))
+                            .map(lambda line: py_.filter(line.split(" "), lambda token: token != ""))
+                            .filter(lambda line: len(line) != 0)
+                        #  .map(debug_output)
+                            .filter(lambda line: line[1] in self.freeze)
+                            .map(lambda line: int(line[0]))
+                            .value()
+                        )
+            for to_freeze in to_freezes:
+                print(to_freeze)
+                constraints.AddAtomConstraint(to_freeze)
 
-                ff = openbabel.OBForceField.FindForceField("UFF")
-                ff.Setup(obmol, constraints)
-                print("Init:", ff.Energy())
-                ff.ConjugateGradients(self.clean["steps"])
-                print("Optimed", ff.Energy())
-                ff.GetConformers(obmol)
-                output = pybel.Molecule(obmol)
-                output = output.write("mol2")
-                return output
-        pass
+            ff = openbabel.OBForceField.FindForceField("UFF")
+            ff.Setup(obmol, constraints)
+            print("Init:", ff.Energy())
+            ff.ConjugateGradients(self.clean["steps"])
+            print("Optimed", ff.Energy())
+            ff.GetConformers(obmol)
+            output = pybel.Molecule(obmol)
+            output = output.write("mol2")
+            return output
+        else:
+            for [tag, value] in rules:
+                if(tags.get(tag) == value):
+                    print(tags.get(tag))
+                    obmol = pybel.readstring("mol2", mol2).OBMol
+                    constraints = openbabel.OBFFConstraints()
+                    to_freezes = (py_.chain(atoms_section[0][0].split("\n"))
+                                .map(lambda line: py_.filter(line.split(" "), lambda token: token != ""))
+                                .filter(lambda line: len(line) != 0)
+                                #  .map(debug_output)
+                                .filter(lambda line: line[1] in self.freeze)
+                                .map(lambda line: int(line[0]))
+                                .value()
+                                )
+                    for to_freeze in to_freezes:
+                        print(to_freeze)
+                        constraints.AddAtomConstraint(to_freeze)
+
+                    ff = openbabel.OBForceField.FindForceField("UFF")
+                    ff.Setup(obmol, constraints)
+                    print("Init:", ff.Energy())
+                    ff.ConjugateGradients(self.clean["steps"])
+                    print("Optimed", ff.Energy())
+                    ff.GetConformers(obmol)
+                    output = pybel.Molecule(obmol)
+                    output = output.write("mol2")
+                    return output
+            pass
 
     def __write__(self, target, content):
         target_dir = dirname(target)
@@ -166,9 +192,11 @@ class Output:
         filename = self.filenamePattern
         for stage_name in names:
             filename = filename.replace(f"{{{stage_name}}}", names[stage_name])
-        self.__write__(filename, mol2)
+        # self.__write__(filename, mol2)
         if cleaned is not None:
-            self.__write__(f"{filename}.cleaned.mol2", cleaned)
+            self.__write__(filename, cleaned)
+        else:
+            self.__write__(filename, mol2)
         return item, "output"
 
 default_runners = {

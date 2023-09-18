@@ -1,3 +1,4 @@
+from sys import argv
 from typing import Any
 from layers.StaticLayer import StaticLayer
 from layers.UtilLayers import AutoBondLayer
@@ -5,8 +6,9 @@ from workflow.Workflow import Workflow, default_runners
 from fs.osfs import OSFS
 import yaml
 from libs.RadiiTable import default_radius_table
+import os
 
-workflow_data = yaml.load(OSFS("./").readtext("test.yml"), yaml.Loader)
+workflow_data = yaml.load(OSFS("./").readtext(argv[1]), yaml.Loader)
 
 class ClampRisky:
     def __init__(self, options, meta):
