@@ -31,7 +31,7 @@ class Atom:
 
     def __repr__(self) -> str:
         x, y, z = self.position
-        return f"{self.element} {x} {y} {z}"
+        return f"{self.element} {x} {y} {z} {self.class_name}"
 
     @property
     def export(self):
