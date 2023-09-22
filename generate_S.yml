@@ -1,0 +1,108 @@
+version: "1"
+substitutes: []
+output_prefix: ["output", "workflow", "S"]
+rootDirectory: ["."]
+template: [example_data, template.mol2]
+
+jobs:
+- name: tune_right
+  use: add_substitute
+  with:
+    replace:
+    - [P11, H35]
+    - [P11, H36]
+    substitutes: all
+- name: tune_left
+  use: add_substitute
+  with:
+    replace: 
+    - [P12, H33]
+    - [P12, H34]
+    substitutes: all
+# - name: risky_check
+#   use: risky
+#   with: 
+# - name: output_A1
+#   use: output
+#   with:
+#     clean:
+#       steps: 500
+#       freeze: [Mn1, N2, HA, HB, P11, P12, C3, C9]
+#       rules:
+#         # - [risky_check, warning]
+#     pattern: ["{tune_right}.{tune_left}", A1.mol2]
+- name: import_H2
+  use: import
+  with:
+    filepath: [H2.mol2]
+    rotation: no
+    translation: no
+# - name: output_A2
+#   use: output
+#   with:
+#     clean:
+#       steps: 500
+#       freeze: [Mn1, N2, HA, HB, P11, P12, C3, C9]
+#       rules:
+#         # - [risky_check, warning]
+#     pattern: ["{tune_right}.{tune_left}", A2.mol2]
+- name: A2-A3
+  use: modify_atom
+  with:
+  - select: HA
+    translation: [-0.3432,  1.9904, -0.0458]
+  - select: HB
+    translation: [0.1904, -0.2012, -0.3386]
+- name: connect_H_N
+  use: modify_bond
+  with:
+  - [HA, N2, 1]
+  - [HB, Mn1, 1]
+- name: add_substance
+  use: import
+  with:
+    filepath: [C=O.mol2]
+    rotation: no
+    traslation: no
+- name: A3-A4
+  use: parallel
+  with:
+  - !REF R_route.yml
+  - !REF S_route.yml
+
+- name: SiPr
+  use: add_substitute
+  with:
+    replace:
+    - [CSub, HSub1]
+    substitutes: [iPr]
+- name: SMe
+  use: add_substitute
+  with:
+    replace:
+    - [CSub, HSub2]
+    substitutes: [CH3]
+- name: output_A4
+  use: output
+  with:
+    clean:
+      steps: 500
+      freeze: [Mn1, N2, HA, HB, P11, P12, C3, C9, CSub, OSub]
+      rules:
+    pattern: ["{tune_right}.{tune_left}" ,"A4S.mol2"] 
+- name: A4-A5
+  use: modify_bond
+  with:
+  - [HA, OSub, 1]
+  - [HB, CSub, 1]
+  - [OSub, CSub, 1]
+  - [HA, N2, null]
+  - [HB, Mn1, null]
+- name: output_A5S
+  use: output
+  with:
+    clean:
+      steps: 1500
+      freeze: [Mn1, N2, P11, P12, C3, C9]
+      rules:
+    pattern: ["{tune_right}.{tune_left}" ,"A5S.mol2"]
